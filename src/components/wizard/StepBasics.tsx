@@ -1,6 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { WizardData } from "@/types/campaign";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { WizardData, Channel } from "@/types/campaign";
+import { CHANNEL_LABELS } from "@/types/campaign";
 
 interface Props {
   data: WizardData;
@@ -8,7 +10,17 @@ interface Props {
   update: (partial: Partial<WizardData>) => void;
 }
 
+const AVAILABLE_CHANNELS: Channel[] = ["sms", "flash_sms"];
+
 export default function StepBasics({ data, errors, update }: Props) {
+  function toggleChannel(channel: Channel) {
+    const current = data.channels || [];
+    const next = current.includes(channel)
+      ? current.filter((c) => c !== channel)
+      : [...current, channel];
+    update({ channels: next });
+  }
+
   return (
     <div className="space-y-5">
       {/* Name */}
@@ -37,6 +49,23 @@ export default function StepBasics({ data, errors, update }: Props) {
           3–11 characters, letters, numbers, and underscores only
         </p>
         {errors.sender_id && <p className="text-sm text-destructive">{errors.sender_id}</p>}
+      </div>
+
+      {/* Channels */}
+      <div className="space-y-2">
+        <Label>Channels</Label>
+        <div className="flex flex-wrap gap-4">
+          {AVAILABLE_CHANNELS.map((ch) => (
+            <label key={ch} className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={(data.channels || []).includes(ch)}
+                onCheckedChange={() => toggleChannel(ch)}
+              />
+              <span className="text-sm">{CHANNEL_LABELS[ch]}</span>
+            </label>
+          ))}
+        </div>
+        {errors.channels && <p className="text-sm text-destructive">{errors.channels}</p>}
       </div>
     </div>
   );

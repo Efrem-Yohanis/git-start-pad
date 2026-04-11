@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Section, Field } from "./Section";
 import type { Schedule } from "@/types/campaign";
 import {
-  FREQUENCY_LABELS,
+  SCHEDULE_TYPE_LABELS,
   DAY_LABELS,
   SCHEDULE_STATUS_LABELS,
   WINDOW_STATUS_LABELS,
@@ -18,7 +18,7 @@ const SCHEDULE_STATUS_COLORS: Record<string, string> = {
 
 export function ScheduleSection({ schedule }: { schedule: Schedule }) {
   const s = schedule;
-  const isOneTime = s.schedule_type === "one_time";
+  const isOneTime = s.schedule_type === "once";
 
   return (
     <Section icon={CalendarClock} title="Schedule">
@@ -34,9 +34,9 @@ export function ScheduleSection({ schedule }: { schedule: Schedule }) {
           ) : (
             <div className="flex items-center gap-2 text-sm">
               <Repeat className="h-4 w-4 text-primary" />
-              <span className="font-medium">Recurring Campaign</span>
+              <span className="font-medium">{SCHEDULE_TYPE_LABELS[s.schedule_type]} Campaign</span>
               <Badge variant="outline" className="text-xs capitalize">
-                {FREQUENCY_LABELS[s.frequency]} cycle
+                {SCHEDULE_TYPE_LABELS[s.schedule_type]} cycle
               </Badge>
             </div>
           )}
@@ -47,27 +47,30 @@ export function ScheduleSection({ schedule }: { schedule: Schedule }) {
 
         {/* Dates */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <Field label="Start Date" value={new Date(s.start_date).toLocaleDateString()} />
+          <Field label="Start Date" value={s.start_date} />
           {s.end_date && (
-            <Field label="End Date" value={new Date(s.end_date).toLocaleDateString()} />
+            <Field label="End Date" value={s.end_date} />
           )}
+          <Field label="Timezone" value={s.timezone} />
         </div>
 
         {/* Recurring details */}
         {!isOneTime && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <Field label="Frequency" value={FREQUENCY_LABELS[s.frequency]} />
-              <div>
-                <span className="text-muted-foreground text-sm">Run Days</span>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {s.run_days.map((d) => (
-                    <Badge key={d} variant="secondary" className="text-xs">
-                      {DAY_LABELS[d] || `Day ${d}`}
-                    </Badge>
-                  ))}
+              <Field label="Schedule Type" value={SCHEDULE_TYPE_LABELS[s.schedule_type]} />
+              {s.run_days && s.run_days.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground text-sm">Run Days</span>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {s.run_days.map((d) => (
+                      <Badge key={d} variant="secondary" className="text-xs">
+                        {DAY_LABELS[d] || `Day ${d}`}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </>
         )}
@@ -78,15 +81,15 @@ export function ScheduleSection({ schedule }: { schedule: Schedule }) {
             <Clock className="h-3.5 w-3.5" /> Delivery Windows
           </span>
           <div className="space-y-2">
-            {s.send_times.map((st, i) => (
+            {s.time_windows.map((tw, i) => (
               <div
                 key={i}
                 className="flex items-center gap-3 bg-secondary/40 rounded-sm px-4 py-2.5 text-sm"
               >
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{st}</span>
+                <span className="font-medium">{tw.start}</span>
                 <span className="text-muted-foreground">→</span>
-                <span className="font-medium">{s.end_times[i] || "—"}</span>
+                <span className="font-medium">{tw.end}</span>
                 <Badge
                   variant="outline"
                   className="ml-auto text-xs"
@@ -105,13 +108,8 @@ export function ScheduleSection({ schedule }: { schedule: Schedule }) {
               {isOneTime ? "Scheduled Execution" : "Next Scheduled Run"}
             </span>
             <p className="text-sm font-medium mt-0.5">
-              {new Date(s.start_date).toLocaleDateString(undefined, {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-              {s.send_times[0] && ` at ${s.send_times[0]}`}
+              {s.start_date}
+              {s.time_windows[0] && ` at ${s.time_windows[0].start}`}
             </p>
           </div>
         )}

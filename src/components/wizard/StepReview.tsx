@@ -1,5 +1,5 @@
 import type { WizardData } from "@/types/campaign";
-import { LANGUAGE_LABELS, FREQUENCY_LABELS, DAY_LABELS } from "@/types/campaign";
+import { LANGUAGE_LABELS, SCHEDULE_TYPE_LABELS, DAY_LABELS, CHANNEL_LABELS } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
 import { Users, CalendarClock, MessageSquare, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,15 @@ export default function StepReview({ data }: Props) {
             <p className="text-xs text-muted-foreground mb-1">Sender ID</p>
             <p className="font-medium text-foreground">{data.sender_id || "—"}</p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Channels</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {(data.channels || []).map((ch) => (
+                <Badge key={ch} variant="secondary">{CHANNEL_LABELS[ch] || ch}</Badge>
+              ))}
+              {(!data.channels || data.channels.length === 0) && <span className="text-muted-foreground">—</span>}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -45,54 +54,46 @@ export default function StepReview({ data }: Props) {
         <div className="px-4 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Type</p>
-            <Badge variant="secondary">{data.schedule_type === "one_time" ? "One Time" : "Recurring"}</Badge>
+            <Badge variant="secondary">{SCHEDULE_TYPE_LABELS[data.schedule_type]}</Badge>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">{data.schedule_type === "one_time" ? "Send Date" : "Start Date"}</p>
-            <p className="font-medium text-foreground">
-              {data.start_date ? new Date(data.start_date).toLocaleString() : "—"}
-            </p>
+            <p className="text-xs text-muted-foreground mb-1">{data.schedule_type === "once" ? "Send Date" : "Start Date"}</p>
+            <p className="font-medium text-foreground">{data.start_date || "—"}</p>
           </div>
-          {data.schedule_type === "recurring" && (
-            <>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">End Date</p>
-                <p className="font-medium text-foreground">
-                  {data.end_date ? new Date(data.end_date).toLocaleString() : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Frequency</p>
-                <p className="font-medium text-foreground">
-                  {data.frequency ? FREQUENCY_LABELS[data.frequency as keyof typeof FREQUENCY_LABELS] : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Run Days</p>
-                <div className="flex flex-wrap gap-1">
-                  {data.run_days.length > 0
-                    ? data.run_days.map((d) => (
-                        <Badge key={d} variant="secondary" className="text-xs">
-                          {DAY_LABELS[d] || `Day ${d}`}
-                        </Badge>
-                      ))
-                    : <span className="text-foreground">—</span>}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Time Windows</p>
-                <div className="flex flex-wrap gap-2">
-                  {data.send_times.filter((t) => t.trim()).length > 0
-                    ? data.send_times.map((st, i) => (
-                        <Badge key={i} variant="outline" className="text-xs font-mono">
-                          {st || "??"} – {data.end_times[i] || "??"}
-                        </Badge>
-                      ))
-                    : <span className="text-foreground">—</span>}
-                </div>
-              </div>
-            </>
+          {data.schedule_type !== "once" && data.end_date && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">End Date</p>
+              <p className="font-medium text-foreground">{data.end_date}</p>
+            </div>
           )}
+          {data.schedule_type === "weekly" && data.run_days.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Run Days</p>
+              <div className="flex flex-wrap gap-1">
+                {data.run_days.map((d) => (
+                  <Badge key={d} variant="secondary" className="text-xs">
+                    {DAY_LABELS[d] || `Day ${d}`}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Time Windows</p>
+            <div className="flex flex-wrap gap-2">
+              {data.time_windows.filter((tw) => tw.start || tw.end).length > 0
+                ? data.time_windows.map((tw, i) => (
+                    <Badge key={i} variant="outline" className="text-xs font-mono">
+                      {tw.start || "??"} – {tw.end || "??"}
+                    </Badge>
+                  ))
+                : <span className="text-foreground">—</span>}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Timezone</p>
+            <p className="font-medium text-foreground">{data.timezone}</p>
+          </div>
         </div>
       </section>
 
@@ -134,19 +135,14 @@ export default function StepReview({ data }: Props) {
               <p className="text-xs text-muted-foreground mt-1">Total Recipients</p>
             </div>
             <div className="border rounded-sm p-3 text-center">
-              <p className="text-2xl font-semibold text-foreground">
-                {Object.keys(langCounts).length}
-              </p>
+              <p className="text-2xl font-semibold text-foreground">{Object.keys(langCounts).length}</p>
               <p className="text-xs text-muted-foreground mt-1">Languages</p>
             </div>
             <div className="border rounded-sm p-3 text-center">
-              <p className="text-2xl font-semibold text-foreground">
-                {filledLangs.length}
-              </p>
+              <p className="text-2xl font-semibold text-foreground">{filledLangs.length}</p>
               <p className="text-xs text-muted-foreground mt-1">Message Translations</p>
             </div>
           </div>
-
           {Object.keys(langCounts).length > 0 && (
             <div>
               <p className="text-xs text-muted-foreground mb-2">Recipients by Language</p>

@@ -1,161 +1,130 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import type { Campaign } from "@/types/campaign";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import type { Campaign, CampaignStatus, Schedule, MessageContent, Audience, Language, TimeWindow, CampaignProgress } from "@/types/campaign";
+import { fetchCampaigns as apiFetchCampaigns, fetchCampaign as apiFetchCampaign, deleteCampaignApi, type ApiCampaign, type ApiProgress } from "@/lib/api";
 
-const MOCK_CAMPAIGNS: Campaign[] = [
-  {
-    id: "1",
-    name: "Summer Sale Kickoff",
-    status: "active",
-    sender_id: "SHOPNOW",
-    channels: ["sms"],
-    schedule: {
-      schedule_type: "recurring",
-      start_date: "2024-08-01T09:00",
-      end_date: "2024-08-05T17:00",
-      frequency: "daily",
-      run_days: [0, 1, 2, 3, 4],
-      send_times: ["09:00"],
-      end_times: ["17:00"],
-      is_active: true,
-      status: "running",
-    },
-    message_content: {
-      content: {
-        en: "Don't miss our Summer Sale! Up to 50% off.",
-        am: "የበጋ ሽያጫችንን አይዝሩ! እስከ 50% ቅናሽ።",
-        ti: "",
-        om: "",
-        so: "",
-      },
-      default_language: "en",
-    },
-    audience: {
-      recipients: [
-        { msisdn: "+251912345678", lang: "en" },
-        { msisdn: "+251911111111", lang: "am" },
-        { msisdn: "+251913333333", lang: "en" },
-        { msisdn: "+251914444444", lang: "ti" },
-        { msisdn: "+251915555555", lang: "om" },
-      ],
-      total_count: 1428,
-      valid_count: 1428,
-      invalid_count: 0,
-    },
-    progress: {
-      total_messages: 1428,
-      sent_count: 856,
-      failed_count: 12,
-      pending_count: 560,
-      progress_percent: 60.78,
-      status: "ACTIVE",
-      started_at: "2024-08-01T09:00:00Z",
-      completed_at: null,
-    },
-    created_at: "2024-07-20T10:00:00Z",
-    updated_at: "2024-07-20T10:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Account Verification",
-    status: "completed",
-    sender_id: "VERIFY",
-    channels: ["sms", "flash_sms"],
-    schedule: {
-      schedule_type: "one_time",
-      start_date: "2024-06-15T08:00",
-      end_date: "2024-06-15T18:00",
-      frequency: "daily",
-      run_days: [0, 1, 2, 3, 4, 5, 6],
-      send_times: ["08:00"],
-      end_times: ["18:00"],
-      is_active: false,
-      status: "completed",
-    },
-    message_content: {
-      content: {
-        en: "Verify your account by dialing *123#",
-        am: "",
-        ti: "",
-        om: "",
-        so: "",
-      },
-      default_language: "en",
-    },
-    audience: {
-      recipients: [
-        { msisdn: "+251922222222", lang: "en" },
-        { msisdn: "+251923333333", lang: "am" },
-      ],
-      total_count: 342,
-      valid_count: 342,
-      invalid_count: 0,
-    },
-    progress: {
-      total_messages: 342,
-      sent_count: 340,
-      failed_count: 2,
-      pending_count: 0,
-      progress_percent: 100,
-      status: "COMPLETED",
-      started_at: "2024-06-15T08:00:00Z",
-      completed_at: "2024-06-15T18:00:00Z",
-    },
-    created_at: "2024-06-15T08:30:00Z",
-    updated_at: "2024-06-15T08:30:00Z",
-  },
-  {
-    id: "3",
-    name: "Loyalty Rewards Update",
-    status: "paused",
-    sender_id: "LOYALTY",
-    channels: ["sms", "app_notification"],
-    schedule: {
-      schedule_type: "recurring",
-      start_date: "2024-09-01T06:00",
-      end_date: "2024-09-30T23:59",
-      frequency: "weekly",
-      run_days: [0, 2, 4],
-      send_times: ["06:00"],
-      end_times: ["20:00"],
-      is_active: false,
-      status: "stop",
-    },
-    message_content: {
-      content: {
-        en: "Your loyalty points are about to expire. Redeem them now!",
-        am: "",
-        ti: "",
-        om: "",
-        so: "",
-      },
-      default_language: "en",
-    },
-    audience: {
-      recipients: [
-        { msisdn: "+251931111111", lang: "en" },
-        { msisdn: "+251932222222", lang: "so" },
-      ],
-      total_count: 5891,
-      valid_count: 5891,
-      invalid_count: 0,
-    },
-    progress: {
-      total_messages: 5891,
-      sent_count: 2100,
-      failed_count: 45,
-      pending_count: 3746,
-      progress_percent: 36.41,
-      status: "STOPPED",
-      started_at: "2024-09-01T06:00:00Z",
-      completed_at: null,
-    },
-    created_at: "2024-08-25T14:00:00Z",
-    updated_at: "2024-08-25T14:00:00Z",
-  },
-];
+function parseProgress(raw: ApiProgress | string | undefined): CampaignProgress | undefined {
+  if (!raw || typeof raw === "string") return undefined;
+  return {
+    total_messages: raw.total_messages ?? 0,
+    sent_count: raw.sent_count ?? 0,
+    delivered_count: raw.delivered_count ?? 0,
+    failed_count: raw.failed_count ?? 0,
+    failed_delivery_count: 0,
+    pending_count: raw.pending_count ?? 0,
+    progress_percent: raw.progress_percent ?? 0,
+    status: raw.status ?? "PENDING",
+    started_at: "",
+    completed_at: null,
+  };
+}
+
+function mapApiCampaign(api: ApiCampaign): Campaign {
+  // Map channels
+  let channels: Campaign["channels"] = [];
+  if (Array.isArray(api.channels)) {
+    channels = api.channels as Campaign["channels"];
+  } else if (api.channels && typeof api.channels === "object") {
+    channels = Object.values(api.channels) as Campaign["channels"];
+  }
+
+  // Map schedule
+  let schedule: Schedule | undefined;
+  if (api.schedule) {
+    const s = api.schedule;
+    let timeWindows: TimeWindow[] = [];
+    if (Array.isArray(s.time_windows)) {
+      timeWindows = s.time_windows as TimeWindow[];
+    } else if (s.time_windows && typeof s.time_windows === "object") {
+      timeWindows = Object.values(s.time_windows).map((v: any) =>
+        typeof v === "string" ? { start: v, end: v } : v
+      );
+    }
+
+    let runDays: number[] = [];
+    if (Array.isArray(s.run_days)) {
+      runDays = s.run_days as number[];
+    } else if (s.run_days && typeof s.run_days === "object") {
+      runDays = Object.values(s.run_days).map(Number);
+    }
+
+    schedule = {
+      schedule_type: s.schedule_type as Schedule["schedule_type"],
+      start_date: s.start_date,
+      end_date: s.end_date || undefined,
+      run_days: runDays,
+      time_windows: timeWindows,
+      timezone: s.timezone || "UTC",
+      auto_reset: s.auto_reset,
+      is_active: s.is_active,
+      status: (s.campaign_status || "pending") as Schedule["status"],
+    };
+  }
+
+  // Map message content
+  let messageContent: MessageContent | undefined;
+  if (api.message_content) {
+    messageContent = {
+      content: api.message_content.content as Record<Language, string>,
+      default_language: (api.message_content.default_language || "en") as Language,
+    };
+  }
+
+  // Map audience
+  let audience: Audience | undefined;
+  if (api.audience) {
+    const a = api.audience;
+    // Handle both flat fields and summary object
+    let totalCount = 0, validCount = 0, invalidCount = 0;
+    if (typeof a.summary === "object" && a.summary !== null) {
+      totalCount = (a.summary as any).total ?? 0;
+      validCount = (a.summary as any).valid ?? 0;
+      invalidCount = (a.summary as any).invalid ?? 0;
+    } else {
+      totalCount = a.total_count ?? 0;
+      validCount = a.valid_count ?? 0;
+      invalidCount = a.invalid_count ?? 0;
+    }
+    audience = {
+      recipients: [],
+      total_count: totalCount,
+      valid_count: validCount,
+      invalid_count: invalidCount,
+    };
+  }
+
+  return {
+    id: String(api.id),
+    name: api.name,
+    status: api.status as CampaignStatus,
+    execution_status: api.execution_status,
+    execution_status_display: api.execution_status_display,
+    sender_id: api.sender_id,
+    channels,
+    schedule: schedule!,
+    message_content: messageContent!,
+    audience: audience!,
+    progress: parseProgress(api.progress),
+    can_start: api.can_start,
+    can_pause: api.can_pause,
+    can_resume: api.can_resume,
+    can_stop: api.can_stop,
+    can_complete: api.can_complete,
+    created_at: api.created_at,
+    updated_at: api.updated_at,
+  };
+}
 
 interface CampaignContextType {
   campaigns: Campaign[];
+  loading: boolean;
+  error: string | null;
+  totalCount: number;
+  page: number;
+  setPage: (page: number) => void;
+  pageSize: number;
+  setPageSize: (size: number) => void;
+  refetch: () => void;
+  fetchSingleCampaign: (id: string) => Promise<Campaign | null>;
   addCampaign: (campaign: Omit<Campaign, "id" | "created_at" | "updated_at">) => void;
   updateCampaign: (id: string, partial: Partial<Campaign>) => void;
   deleteCampaign: (id: string) => void;
@@ -164,34 +133,73 @@ interface CampaignContextType {
 const CampaignContext = createContext<CampaignContextType | null>(null);
 
 export function CampaignProvider({ children }: { children: ReactNode }) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(10);
 
-  const addCampaign = useCallback((data: Omit<Campaign, "id" | "created_at" | "updated_at">) => {
-    setCampaigns((prev) => [
-      {
-        ...data,
-        id: String(Date.now()),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+  const setPageSize = useCallback((size: number) => {
+    setPageSizeState(size);
+    setPage(1);
   }, []);
+
+  const fetchData = useCallback(async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setCampaigns([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiFetchCampaigns(page, pageSize);
+      setCampaigns(data.results.map(mapApiCampaign));
+      setTotalCount(data.count);
+    } catch (e: any) {
+      setError(e.message || "Failed to fetch campaigns");
+      setCampaigns([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const fetchSingleCampaign = useCallback(async (id: string): Promise<Campaign | null> => {
+    try {
+      const data = await apiFetchCampaign(Number(id));
+      return mapApiCampaign(data);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const addCampaign = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
 
   const updateCampaign = useCallback((id: string, partial: Partial<Campaign>) => {
     setCampaigns((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, ...partial, updated_at: new Date().toISOString() } : c
-      )
+      prev.map((c) => (c.id === id ? { ...c, ...partial, updated_at: new Date().toISOString() } : c))
     );
   }, []);
 
-  const deleteCampaign = useCallback((id: string) => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+  const deleteCampaign = useCallback(async (id: string) => {
+    try {
+      await deleteCampaignApi(Number(id));
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    } catch {
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    }
   }, []);
 
   return (
-    <CampaignContext.Provider value={{ campaigns, addCampaign, updateCampaign, deleteCampaign }}>
+    <CampaignContext.Provider value={{ campaigns, loading, error, totalCount, page, setPage, pageSize, setPageSize, refetch: fetchData, fetchSingleCampaign, addCampaign, updateCampaign, deleteCampaign }}>
       {children}
     </CampaignContext.Provider>
   );

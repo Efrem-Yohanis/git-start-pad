@@ -1,67 +1,84 @@
 import { type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { Megaphone, Users, CalendarClock, MessageSquareText } from "lucide-react";
-
-const NAV_ITEMS = [
-  { label: "Campaigns", href: "/", icon: Megaphone },
-  { label: "Audiences", href: "/audiences", icon: Users },
-  { label: "Schedules", href: "/schedules", icon: CalendarClock },
-  { label: "Messages", href: "/messages", icon: MessageSquareText },
-];
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { Settings, LogOut, User } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const location = useLocation();
-
-  function isActive(href: string) {
-    if (href === "/") return location.pathname === "/";
-    return location.pathname.startsWith(href);
-  }
+  const navigate = useNavigate();
+  const { username, logout } = useAuth();
+  const initials = username ? username.slice(0, 2).toUpperCase() : "OP";
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-56 flex-col border-r bg-card shrink-0">
-        <div className="px-6 py-5 border-b">
-          <span className="text-sm font-semibold tracking-wide uppercase text-foreground">
-            Campaign Manager
-          </span>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <header className="h-14 border-b bg-card/80 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            </div>
+
+            {/* User dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 px-2 h-9">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground hidden sm:inline">
+                    {username || "Operator"}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-0.5">
+                    <p className="text-sm font-medium">{username || "Operator"}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => { logout(); navigate("/login"); }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </header>
+
+          {/* Content */}
+          <main className="flex-1 overflow-auto p-5 md:p-8">
+            {children}
+          </main>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm rounded-sm",
-                isActive(item.href)
-                  ? "bg-accent font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
-              )}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="h-12 border-b bg-card flex items-center justify-between px-6 shrink-0">
-          <div className="md:hidden text-sm font-semibold tracking-wide uppercase text-foreground">
-            Campaign Manager
-          </div>
-          <div className="hidden md:block" />
-          <span className="text-sm text-muted-foreground">Operator</span>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-6">
-          {children}
-        </main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

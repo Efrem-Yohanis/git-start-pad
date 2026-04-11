@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCampaigns } from "@/context/CampaignContext";
 import { Button } from "@/components/ui/button";
 import type { WizardData } from "@/types/campaign";
 import { EMPTY_WIZARD, SUPPORTED_LANGUAGES } from "@/types/campaign";
@@ -11,6 +10,8 @@ import StepSchedule from "@/components/wizard/StepSchedule";
 import StepReview from "@/components/wizard/StepReview";
 import { Check, ClipboardList, Users, MessageSquare, CalendarClock, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { createCampaign, createSchedule, updateMessageContent, createAudience } from "@/lib/api";
 
 const STEPS = [
   { label: "Campaign Info", icon: ClipboardList },
@@ -22,10 +23,10 @@ const STEPS = [
 
 export default function CampaignCreate() {
   const navigate = useNavigate();
-  const { addCampaign } = useCampaigns();
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<WizardData>({ ...EMPTY_WIZARD, content: { ...EMPTY_WIZARD.content } });
+  const [data, setData] = useState<WizardData>({ ...EMPTY_WIZARD, content: { ...EMPTY_WIZARD.content }, time_windows: [...EMPTY_WIZARD.time_windows] });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   function update(partial: Partial<WizardData>) {
     setData((prev) => ({ ...prev, ...partial }));
@@ -37,6 +38,7 @@ export default function CampaignCreate() {
 
     if (step === 0) {
       if (!data.name.trim()) errs.name = "Name is required";
+      if (data.channels.length === 0) errs.channels = "Select at least one channel";
       if (data.sender_id) {
         if (data.sender_id.length < 3 || data.sender_id.length > 11) {
           errs.sender_id = "Sender ID must be 3–11 characters";
@@ -60,15 +62,13 @@ export default function CampaignCreate() {
 
     if (step === 3) {
       if (!data.start_date) errs.start_date = "Start date is required";
-      if (data.schedule_type === "recurring") {
-        if (!data.end_date) errs.end_date = "End date is required";
-        if (data.start_date && data.end_date && data.start_date >= data.end_date) {
-          errs.end_date = "End date must be after start date";
-        }
-        if (!data.frequency) errs.frequency = "Frequency is required";
-        if (data.run_days.length === 0) errs.run_days = "Select at least one run day";
-        const hasTime = data.send_times.some((t) => t.trim()) && data.end_times.some((t) => t.trim());
-        if (!hasTime) errs.send_times = "At least one time window is required";
+      const hasTimeWindow = data.time_windows.some((tw) => tw.start.trim() && tw.end.trim());
+      if (!hasTimeWindow) errs.time_windows = "At least one time window is required";
+      if (data.schedule_type === "weekly" && data.run_days.length === 0) {
+        errs.run_days = "Select at least one run day";
+      }
+      if (data.schedule_type !== "once" && data.end_date && data.start_date && data.start_date >= data.end_date) {
+        errs.end_date = "End date must be after start date";
       }
     }
 
@@ -85,35 +85,55 @@ export default function CampaignCreate() {
     if (step > 0) setStep(step - 1);
   }
 
-  function handleSubmit() {
-    addCampaign({
-      name: data.name,
-      status: "draft",
-      sender_id: data.sender_id,
-      channels: ["sms"],
-      schedule: {
+  async function handleSubmit() {
+    setSubmitting(true);
+    try {
+      // 1. Create campaign
+      const campaign = await createCampaign({
+        name: data.name,
+        sender_id: data.sender_id,
+        channels: data.channels,
+        status: "draft",
+      });
+      const campaignId = campaign.id;
+
+      // 2. Add schedule
+      await createSchedule(campaignId, {
         schedule_type: data.schedule_type,
         start_date: data.start_date,
-        end_date: data.end_date,
-        frequency: data.frequency as any,
-        run_days: data.run_days,
-        send_times: data.send_times,
-        end_times: data.end_times,
-        is_active: true,
-        status: "pending",
-      },
-      message_content: {
-        content: data.content,
-        default_language: data.default_language,
-      },
-      audience: {
-        recipients: data.recipients,
-        total_count: data.recipients.length,
-        valid_count: data.recipients.length,
-        invalid_count: 0,
-      },
-    });
-    navigate("/");
+        ...(data.end_date ? { end_date: data.end_date } : {}),
+        ...(data.run_days.length > 0 ? { run_days: data.run_days } : {}),
+        time_windows: data.time_windows.filter((tw) => tw.start && tw.end),
+        timezone: data.timezone,
+        auto_reset: data.auto_reset,
+      });
+
+      // 3. Add message content
+      const contentEntries = Object.entries(data.content).filter(([, v]) => v.trim());
+      if (contentEntries.length > 0) {
+        await updateMessageContent(campaignId, {
+          content: Object.fromEntries(contentEntries),
+          default_language: data.default_language,
+        });
+      }
+
+      // 4. Add audience
+      if (data.recipients.length > 0) {
+        await createAudience(campaignId, {
+          recipients: data.recipients.map((r) => ({
+            msisdn: r.msisdn,
+            lang: r.lang,
+          })),
+        });
+      }
+
+      toast.success(`Campaign "${data.name}" created successfully!`);
+      navigate("/campaigns");
+    } catch (err: any) {
+      toast.error("Failed to create campaign: " + (err.message || "Unknown error"));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -127,7 +147,6 @@ export default function CampaignCreate() {
             const isCurrent = i === step;
             return (
               <div key={i} className="flex-1 flex flex-col items-center relative">
-                {/* Connector line */}
                 {i > 0 && (
                   <div
                     className={cn(
@@ -137,7 +156,6 @@ export default function CampaignCreate() {
                     style={{ zIndex: 0 }}
                   />
                 )}
-                {/* Circle */}
                 <div
                   className={cn(
                     "relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
@@ -182,13 +200,15 @@ export default function CampaignCreate() {
         <div className="px-6 py-4 border-t flex justify-between">
           <Button
             variant="outline"
-            onClick={step === 0 ? () => navigate("/") : goBack}
+            onClick={step === 0 ? () => navigate("/campaigns") : goBack}
           >
             {step === 0 ? "Cancel" : "← Back"}
           </Button>
 
           {step === 4 ? (
-            <Button onClick={handleSubmit}>Submit Campaign</Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit Campaign"}
+            </Button>
           ) : (
             <Button onClick={goNext}>Next →</Button>
           )}

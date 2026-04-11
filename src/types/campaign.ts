@@ -1,6 +1,5 @@
 export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "archived";
-export type Frequency = "daily" | "weekly" | "monthly";
-export type ScheduleType = "one_time" | "recurring";
+export type ScheduleType = "once" | "daily" | "weekly" | "monthly";
 export type ScheduleStatus = "pending" | "running" | "stop" | "completed";
 export type Channel = "sms" | "app_notification" | "flash_sms";
 export type Language = "en" | "am" | "ti" | "om" | "so";
@@ -25,6 +24,7 @@ export const EXECUTION_STATUS_LABELS: Record<string, string> = {
   STOPPED: "Stopped",
   COMPLETED: "Completed",
   FAILED: "Failed",
+  ACTIVE: "Active",
 };
 
 export const WINDOW_STATUS_LABELS: Record<string, string> = {
@@ -35,7 +35,7 @@ export const WINDOW_STATUS_LABELS: Record<string, string> = {
   skipped: "Skipped",
 };
 
-export const SCHEDULE_TYPE_LABELS: Record<string, string> = {
+export const SCHEDULE_TYPE_LABELS: Record<ScheduleType, string> = {
   once: "One-time",
   daily: "Daily",
   weekly: "Weekly",
@@ -50,12 +50,6 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   ti: "Tigrinya",
   om: "Afaan Oromoo",
   so: "Somali",
-};
-
-export const FREQUENCY_LABELS: Record<Frequency, string> = {
-  daily: "Daily",
-  weekly: "Weekly",
-  monthly: "Monthly",
 };
 
 export const DAY_LABELS: Record<number, string> = {
@@ -73,14 +67,19 @@ export interface Recipient {
   lang: Language;
 }
 
+export interface TimeWindow {
+  start: string;
+  end: string;
+}
+
 export interface Schedule {
   schedule_type: ScheduleType;
   start_date: string;
-  end_date: string;
-  frequency: Frequency;
-  run_days: number[];
-  send_times: string[];
-  end_times: string[];
+  end_date?: string;
+  run_days?: number[];
+  time_windows: TimeWindow[];
+  timezone: string;
+  auto_reset: boolean;
   is_active: boolean;
   status: ScheduleStatus;
 }
@@ -88,11 +87,27 @@ export interface Schedule {
 export interface CampaignProgress {
   total_messages: number;
   sent_count: number;
+  delivered_count: number;
   failed_count: number;
+  failed_delivery_count: number;
   pending_count: number;
   progress_percent: number;
-  status: "ACTIVE" | "COMPLETED" | "STOPPED" | "FAILED";
+  status: string;
   started_at: string;
+  completed_at: string | null;
+}
+
+export interface ExecutionRound {
+  round: number;
+  date: string;
+  window: string;
+  status: "completed" | "partial" | "failed" | "pending" | "active";
+  queued: number;
+  sent: number;
+  delivered: number;
+  failed_send: number;
+  failed_delivery: number;
+  started_at: string | null;
   completed_at: string | null;
 }
 
@@ -112,12 +127,20 @@ export interface Campaign {
   id: string;
   name: string;
   status: CampaignStatus;
+  execution_status?: string;
+  execution_status_display?: string;
   sender_id: string;
   channels: Channel[];
   schedule: Schedule;
   message_content: MessageContent;
   audience: Audience;
   progress?: CampaignProgress;
+  execution_rounds?: ExecutionRound[];
+  can_start?: boolean;
+  can_pause?: boolean;
+  can_resume?: boolean;
+  can_stop?: boolean;
+  can_complete?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -129,18 +152,16 @@ export type AudienceSource = "manual" | "database";
 export interface WizardData {
   name: string;
   sender_id: string;
-  // Schedule
+  channels: Channel[];
   schedule_type: ScheduleType;
   start_date: string;
   end_date: string;
-  frequency: Frequency | "";
   run_days: number[];
-  send_times: string[];
-  end_times: string[];
-  // Messages
+  time_windows: TimeWindow[];
+  timezone: string;
+  auto_reset: boolean;
   content: Record<Language, string>;
   default_language: Language;
-  // Audience
   audience_source: AudienceSource;
   recipients: Recipient[];
   db_query: string;
@@ -149,13 +170,14 @@ export interface WizardData {
 export const EMPTY_WIZARD: WizardData = {
   name: "",
   sender_id: "",
-  schedule_type: "one_time",
+  channels: ["sms"],
+  schedule_type: "once",
   start_date: "",
   end_date: "",
-  frequency: "",
   run_days: [],
-  send_times: [""],
-  end_times: [""],
+  time_windows: [{ start: "", end: "" }],
+  timezone: "UTC",
+  auto_reset: true,
   content: { en: "", am: "", ti: "", om: "", so: "" },
   default_language: "en",
   audience_source: "manual",

@@ -3,18 +3,22 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/context/AuthContext";
 import { CampaignProvider } from "@/context/CampaignContext";
 import AppShell from "@/components/AppShell";
+import Dashboard from "@/pages/Dashboard";
 import CampaignList from "@/pages/CampaignList";
 import CampaignDetail from "@/pages/CampaignDetail";
 import CampaignCreate from "@/pages/CampaignCreate";
 import AudienceList from "@/pages/AudienceList";
 import AudienceDetail from "@/pages/AudienceDetail";
+import AudienceCreate from "@/pages/AudienceCreate";
 import ScheduleList from "@/pages/ScheduleList";
 import ScheduleDetail from "@/pages/ScheduleDetail";
 import MessageContentList from "@/pages/MessageContentList";
 import MessageContentDetail from "@/pages/MessageContentDetail";
 import NotFound from "./pages/NotFound.tsx";
+import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -24,23 +28,35 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <CampaignProvider>
-          <AppShell>
-            <Routes>
-              <Route path="/" element={<CampaignList />} />
-              <Route path="/campaigns/new" element={<CampaignCreate />} />
-              <Route path="/campaigns/:id" element={<CampaignDetail />} />
-              <Route path="/campaigns/:id/edit" element={<CampaignCreate />} />
-              <Route path="/audiences" element={<AudienceList />} />
-              <Route path="/audiences/:id" element={<AudienceDetail />} />
-              <Route path="/schedules" element={<ScheduleList />} />
-              <Route path="/schedules/:id" element={<ScheduleDetail />} />
-              <Route path="/messages" element={<MessageContentList />} />
-              <Route path="/messages/:id" element={<MessageContentDetail />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AppShell>
-        </CampaignProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <CampaignProvider>
+                  <AppShell>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/campaigns" element={<CampaignList />} />
+                      <Route path="/campaigns/new" element={<CampaignCreate />} />
+                      <Route path="/campaigns/:id" element={<CampaignDetail />} />
+                      <Route path="/campaigns/:id/edit" element={<CampaignCreate />} />
+                      <Route path="/audiences" element={<AudienceList />} />
+                      <Route path="/audiences/create" element={<AudienceCreate />} />
+                      <Route path="/audiences/:id" element={<AudienceDetail />} />
+                      <Route path="/schedules" element={<ScheduleList />} />
+                      <Route path="/schedules/:id" element={<ScheduleDetail />} />
+                      <Route path="/messages" element={<MessageContentList />} />
+                      <Route path="/messages/:id" element={<MessageContentDetail />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </AppShell>
+                </CampaignProvider>
+              }
+            />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

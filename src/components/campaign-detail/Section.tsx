@@ -9,10 +9,12 @@ interface SectionProps {
 
 export function Section({ icon: Icon, title, children, action }: SectionProps) {
   return (
-    <div className="bg-card border rounded-sm">
-      <div className="flex items-center justify-between px-5 py-3 border-b">
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-muted-foreground" />
+    <div className="bg-card border rounded-lg shadow-soft">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
           <h2 className="text-sm font-semibold">{title}</h2>
         </div>
         {action}
@@ -25,17 +27,17 @@ export function Section({ icon: Icon, title, children, action }: SectionProps) {
 export function Field({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div>
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <p className={`mt-0.5 font-medium ${className || ""}`}>{value}</p>
+      <span className="text-muted-foreground text-xs uppercase tracking-wider">{label}</span>
+      <p className={`mt-1 font-medium text-sm ${className || ""}`}>{value}</p>
     </div>
   );
 }
 
 export function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="bg-secondary/30 rounded-sm px-4 py-3">
+    <div className="bg-muted/50 rounded-lg px-4 py-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-lg font-semibold ${color || ""}`}>{value}</p>
+      <p className={`text-lg font-bold ${color || ""}`}>{value}</p>
     </div>
   );
 }

@@ -2,9 +2,10 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCampaigns } from "@/context/CampaignContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Radio } from "lucide-react";
-import type { CampaignStatus, Channel } from "@/types/campaign";
-import { CHANNEL_LABELS } from "@/types/campaign";
+import { ArrowLeft, Radio, Loader2 } from "lucide-react";
+import type { CampaignStatus, Channel, Campaign } from "@/types/campaign";
+import { CHANNEL_LABELS, SCHEDULE_TYPE_LABELS } from "@/types/campaign";
+import { useState, useEffect, useCallback } from "react";
 
 import { Section, Field } from "@/components/campaign-detail/Section";
 import { ProgressSection } from "@/components/campaign-detail/ProgressSection";
@@ -25,57 +26,99 @@ const STATUS_COLORS: Record<CampaignStatus, string> = {
 export default function CampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { campaigns, updateCampaign } = useCampaigns();
-  const c = campaigns.find((x) => x.id === id);
+  const { campaigns, fetchSingleCampaign, refetch } = useCampaigns();
+  const [campaign, setCampaign] = useState<Campaign | null | undefined>(undefined);
 
-  if (!c) {
+  const loadCampaign = useCallback(async () => {
+    // Try from context first
+    const fromCtx = campaigns.find((x) => x.id === id);
+    if (fromCtx) {
+      setCampaign(fromCtx);
+    }
+    // Always fetch fresh from API
+    if (id) {
+      const fresh = await fetchSingleCampaign(id);
+      if (fresh) setCampaign(fresh);
+      else if (!fromCtx) setCampaign(null);
+    }
+  }, [id, campaigns, fetchSingleCampaign]);
+
+  useEffect(() => {
+    loadCampaign();
+  }, [loadCampaign]);
+
+  const handleActionComplete = useCallback(() => {
+    // Refetch both list and detail
+    refetch();
+    if (id) fetchSingleCampaign(id).then((c) => c && setCampaign(c));
+  }, [id, refetch, fetchSingleCampaign]);
+
+  if (campaign === undefined) {
     return (
-      <div className="text-center py-20 text-muted-foreground">
-        <p>Campaign not found.</p>
-        <Link to="/" className="text-primary hover:underline mt-2 inline-block">
-          Back to campaigns
-        </Link>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const handleStatusChange = (status: CampaignStatus) => {
-    updateCampaign(c.id, { status });
-  };
+  if (!campaign) {
+    return (
+      <div className="text-center py-20 text-muted-foreground">
+        <p>Campaign not found.</p>
+        <Link to="/campaigns" className="text-primary hover:underline mt-2 inline-block">Back to campaigns</Link>
+      </div>
+    );
+  }
+
+  const c = campaign;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header */}
+    <div className="space-y-6 w-full">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/campaigns")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-xl font-semibold">{c.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              Created {new Date(c.created_at).toLocaleDateString()}
-            </p>
+            <p className="text-sm text-muted-foreground">Created {new Date(c.created_at).toLocaleDateString()}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Badge className={STATUS_COLORS[c.status]}>{c.status}</Badge>
-          <Badge variant="outline" className="capitalize">
-            {c.schedule.schedule_type === "one_time" ? "One-time" : "Recurring"}
-          </Badge>
+          {c.execution_status_display && (
+            <Badge variant="outline">{c.execution_status_display}</Badge>
+          )}
+          {c.schedule && (
+            <Badge variant="outline" className="capitalize">
+              {SCHEDULE_TYPE_LABELS[c.schedule.schedule_type]}
+            </Badge>
+          )}
           <Link to={`/campaigns/${c.id}/edit`}>
             <Button variant="outline" size="sm">Edit</Button>
           </Link>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <CampaignActions campaign={c} onStatusChange={handleStatusChange} />
+      <CampaignActions campaign={c} onActionComplete={handleActionComplete} />
 
-      {/* Progress */}
-      {c.progress && <ProgressSection progress={c.progress} />}
+      {c.progress && (
+        <ProgressSection
+          progress={c.progress}
+          schedule={c.schedule}
+          rounds={c.execution_rounds}
+          campaignName={c.name}
+          senderId={c.sender_id}
+        />
+      )}
 
-      {/* Campaign Info */}
+      {c.execution_rounds && c.execution_rounds.length > 0 && (
+        <ExecutionHistory
+          rounds={c.execution_rounds}
+          isOneTime={c.schedule?.schedule_type === "once"}
+        />
+      )}
+
       <Section icon={Radio} title="Campaign Info">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <Field label="Campaign Name" value={c.name} />
@@ -96,17 +139,9 @@ export default function CampaignDetail() {
         </div>
       </Section>
 
-      {/* Schedule */}
-      <ScheduleSection schedule={c.schedule} />
-
-      {/* Execution History (recurring only) */}
-      <ExecutionHistory schedule={c.schedule} />
-
-      {/* Message Content */}
-      <MessageSection messageContent={c.message_content} />
-
-      {/* Audience */}
-      <AudienceSection audience={c.audience} />
+      {c.schedule && <ScheduleSection schedule={c.schedule} />}
+      {c.message_content && <MessageSection messageContent={c.message_content} />}
+      {c.audience && <AudienceSection audience={c.audience} />}
     </div>
   );
 }
