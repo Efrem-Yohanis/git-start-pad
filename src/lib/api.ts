@@ -7,7 +7,7 @@ export * from "./api/audiences";
 export * from "./api/schedules";
 export * from "./api/messages";
 
-const API_BASE_LOCAL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+const API_BASE_LOCAL = (import.meta.env.VITE_API_BASE_URL || "https://django-app-v6.onrender.com").replace(/\/+$/, "");
 
 // Keep local imports for functions that use the module-level variable
 import { authFetch, authHeaders, handleResponse } from "./api/base";
