@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LANGUAGE_LABELS } from "@/types/campaign";
+import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
-import { Plus, MessageSquareText, Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, MessageSquareText, Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { fetchMessageContents, fetchMessageContentSummary, deleteMessageContentById } from "@/lib/api/messages";
 import type { ApiMessageContentListItem, MessageContentSummary } from "@/lib/api/messages";
 import { toast } from "sonner";
@@ -21,16 +23,39 @@ export default function MessageContentList() {
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10;
 
+  // Filters
+  const [search, setSearch] = useState("");
+  const [filterLang, setFilterLang] = useState("all");
+  const [filterCompleteness, setFilterCompleteness] = useState("all");
+
   const [deleteTarget, setDeleteTarget] = useState<ApiMessageContentListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { loadData(); }, [page]);
+  const buildFilters = useCallback(() => {
+    const filters: Record<string, string> = {};
+    if (search.trim()) filters.search = search.trim();
+    if (filterLang !== "all") filters.default_language = filterLang;
+    if (filterCompleteness !== "all") filters.completeness = filterCompleteness;
+    return filters;
+  }, [search, filterLang, filterCompleteness]);
+
+  useEffect(() => { loadData(); }, [page, filterLang, filterCompleteness]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      loadData();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   async function loadData() {
     setLoading(true);
     try {
+      const filters = buildFilters();
       const [listRes, summaryRes] = await Promise.all([
-        fetchMessageContents(page, pageSize),
+        fetchMessageContents(page, pageSize, Object.keys(filters).length > 0 ? filters : undefined),
         page === 1 ? fetchMessageContentSummary() : Promise.resolve(null),
       ]);
       setMessages(listRes.results);
@@ -58,6 +83,14 @@ export default function MessageContentList() {
     }
   }
 
+  function clearFilters() {
+    setSearch("");
+    setFilterLang("all");
+    setFilterCompleteness("all");
+    setPage(1);
+  }
+
+  const hasActiveFilters = search.trim() !== "" || filterLang !== "all" || filterCompleteness !== "all";
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
@@ -101,6 +134,48 @@ export default function MessageContentList() {
         </div>
       )}
 
+      {/* Search & Filters */}
+      <Card className="p-4 shadow-card">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by campaign name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={filterLang} onValueChange={(v) => { setFilterLang(v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Language" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Languages</SelectItem>
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <SelectItem key={l} value={l}>{LANGUAGE_LABELS[l]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterCompleteness} onValueChange={(v) => { setFilterCompleteness(v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Completeness" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="complete">Complete</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="empty">Empty</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 shrink-0">
+              <X className="h-3.5 w-3.5" /> Clear
+            </Button>
+          )}
+        </div>
+      </Card>
+
       <Card className="shadow-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -109,6 +184,7 @@ export default function MessageContentList() {
                 <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Campaign</th>
                 <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Default</th>
                 <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Languages</th>
+                <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Completeness</th>
                 <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Preview</th>
                 <th className="text-right px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
               </tr>
@@ -116,61 +192,79 @@ export default function MessageContentList() {
             <tbody>
               {loading && Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i} className="border-b">
-                  {Array.from({ length: 5 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <td key={j} className="px-5 py-3.5"><Skeleton className="h-4 w-20" /></td>
                   ))}
                 </tr>
               ))}
               {!loading && messages.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-16 text-center">
+                  <td colSpan={6} className="px-5 py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
                         <MessageSquareText className="h-6 w-6 text-muted-foreground" />
                       </div>
-                      <p className="text-muted-foreground">No message content found.</p>
-                      <Link to="/messages/create">
-                        <Button variant="outline" size="sm" className="mt-2 gap-1.5">
-                          <Plus className="h-3.5 w-3.5" /> Create your first message
+                      <p className="text-muted-foreground">
+                        {hasActiveFilters ? "No results match your filters." : "No message content found."}
+                      </p>
+                      {hasActiveFilters ? (
+                        <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={clearFilters}>
+                          <X className="h-3.5 w-3.5" /> Clear filters
                         </Button>
-                      </Link>
+                      ) : (
+                        <Link to="/messages/create">
+                          <Button variant="outline" size="sm" className="mt-2 gap-1.5">
+                            <Plus className="h-3.5 w-3.5" /> Create your first message
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </td>
                 </tr>
               )}
-              {!loading && messages.map((m) => (
-                <tr key={m.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
-                  <td className="px-5 py-3.5 font-medium">
-                    {m.campaign_info?.name ?? `Campaign #${m.campaign}`}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Badge variant="outline" className="text-xs">{LANGUAGE_LABELS[m.default_language as Language] ?? m.default_language}</Badge>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex gap-1 flex-wrap">
-                      {m.languages_available.map((l) => (
-                        <Badge key={l} variant="secondary" className="text-xs">{LANGUAGE_LABELS[l as Language] ?? l}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-muted-foreground truncate max-w-[200px] text-xs">
-                    {m.preview && typeof m.preview === "object" ? m.preview.preview?.slice(0, 60) : "—"}
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/messages/${m.id}`)}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/messages/${m.id}/edit`)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(m)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {!loading && messages.map((m) => {
+                const completeness = m.language_completeness;
+                return (
+                  <tr key={m.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
+                    <td className="px-5 py-3.5 font-medium">
+                      {m.campaign_info?.name ?? `Campaign #${m.campaign}`}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Badge variant="outline" className="text-xs">{LANGUAGE_LABELS[m.default_language as Language] ?? m.default_language}</Badge>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex gap-1 flex-wrap">
+                        {m.languages_available.map((l) => (
+                          <Badge key={l} variant="secondary" className="text-xs">{LANGUAGE_LABELS[l as Language] ?? l}</Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {completeness ? (
+                        <span className={`text-xs font-medium ${completeness.completeness_percentage === 100 ? "text-emerald-600" : "text-amber-600"}`}>
+                          {completeness.completeness_percentage.toFixed(0)}%
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-5 py-3.5 text-muted-foreground truncate max-w-[200px] text-xs">
+                      {m.preview && typeof m.preview === "object" ? m.preview.preview?.slice(0, 60) : "—"}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/messages/${m.id}`)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/messages/${m.id}/edit`)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(m)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -192,7 +286,6 @@ export default function MessageContentList() {
         )}
       </Card>
 
-      {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
