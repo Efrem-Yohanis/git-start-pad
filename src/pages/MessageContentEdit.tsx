@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, Eye } from "lucide-react";
 import { fetchMessageContentDetail, fetchSupportedLanguages, updateMessageContentFull } from "@/lib/api/messages";
 import type { SupportedLanguage } from "@/lib/api/messages";
+import CampaignSelector from "@/components/CampaignSelector";
 
 function calcSmsSegments(text: string): number {
   if (!text) return 0;
@@ -109,8 +109,8 @@ export default function MessageContentEdit() {
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="p-5 shadow-card">
-          <Label className="text-sm font-medium">Campaign ID</Label>
-          <Input type="number" min={1} value={campaign} onChange={(e) => setCampaign(e.target.value)} className="mt-1.5" />
+          <Label className="text-sm font-medium">Campaign</Label>
+          <CampaignSelector value={campaign} onValueChange={setCampaign} className="mt-1.5" />
         </Card>
         <Card className="p-5 shadow-card">
           <Label className="text-sm font-medium">Default Language</Label>
