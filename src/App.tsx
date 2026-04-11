@@ -17,6 +17,8 @@ import ScheduleList from "@/pages/ScheduleList";
 import ScheduleDetail from "@/pages/ScheduleDetail";
 import MessageContentList from "@/pages/MessageContentList";
 import MessageContentDetail from "@/pages/MessageContentDetail";
+import MessageContentCreate from "@/pages/MessageContentCreate";
+import MessageContentEdit from "@/pages/MessageContentEdit";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 
