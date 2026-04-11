@@ -50,7 +50,9 @@ const App = () => (
                       <Route path="/schedules" element={<ScheduleList />} />
                       <Route path="/schedules/:id" element={<ScheduleDetail />} />
                       <Route path="/messages" element={<MessageContentList />} />
+                      <Route path="/messages/create" element={<MessageContentCreate />} />
                       <Route path="/messages/:id" element={<MessageContentDetail />} />
+                      <Route path="/messages/:id/edit" element={<MessageContentEdit />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppShell>
