@@ -190,19 +190,19 @@ export default function ScheduleList() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Schedules</p>
-            <p className="text-2xl font-semibold">{summary.total_schedules}</p>
+            <p className="text-2xl font-semibold">{summary.total}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Active</p>
-            <p className="text-2xl font-semibold text-emerald-600">{summary.active_schedules}</p>
+            <p className="text-2xl font-semibold text-emerald-600">{summary.active}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Running Today</p>
-            <p className="text-2xl font-semibold text-blue-600">{summary.running_today}</p>
+            <p className="text-2xl font-semibold text-blue-600">{summary.today}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Inactive</p>
-            <p className="text-2xl font-semibold text-muted-foreground">{summary.inactive_schedules}</p>
+            <p className="text-2xl font-semibold text-muted-foreground">{summary.inactive}</p>
           </Card>
         </div>
       )}
