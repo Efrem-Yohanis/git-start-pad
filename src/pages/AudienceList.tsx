@@ -9,11 +9,13 @@ import { Progress } from "@/components/ui/progress";
 import { Users, Eye, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { fetchAudiences, fetchAudienceSummary } from "@/lib/api/audiences";
 import type { ApiAudienceListItem, AudienceSummary } from "@/lib/api/audiences";
+import { fetchCampaigns } from "@/lib/api";
 import AudienceFormDialog from "@/components/AudienceFormDialog";
 import DeleteAudienceDialog from "@/components/DeleteAudienceDialog";
 
 export default function AudienceList() {
   const [audiences, setAudiences] = useState<ApiAudienceListItem[]>([]);
+  const [campaignNames, setCampaignNames] = useState<Record<number, string>>({});
   const [summary, setSummary] = useState<AudienceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -39,13 +41,17 @@ export default function AudienceList() {
       const filters: Record<string, string> = {};
       if (campaignFilter.trim()) filters.campaign = campaignFilter.trim();
 
-      const [listRes, summaryRes] = await Promise.all([
+      const [listRes, summaryRes, campaignsRes] = await Promise.all([
         fetchAudiences(page, pageSize, Object.keys(filters).length ? filters : undefined),
         page === 1 ? fetchAudienceSummary() : Promise.resolve(null),
+        fetchCampaigns({ page: 1, pageSize: 100 }),
       ]);
       setAudiences(listRes.results);
       setTotalCount(listRes.count);
       if (summaryRes) setSummary(summaryRes);
+      const nameMap: Record<number, string> = {};
+      campaignsRes.results.forEach((c) => { nameMap[c.id] = c.name; });
+      setCampaignNames(nameMap);
     } catch (e) {
       console.error("Failed to load audiences", e);
     } finally {
@@ -173,7 +179,7 @@ export default function AudienceList() {
               )}
               {!loading && audiences.map((a) => (
                 <tr key={a.id} className={`border-b last:border-b-0 hover:bg-accent/50 transition-colors ${getRowColor(a.valid_percentage)}`}>
-                  <td className="px-5 py-3.5 font-medium">{a.campaign_info?.name ?? `Campaign #${a.campaign}`}</td>
+                  <td className="px-5 py-3.5 font-medium">{campaignNames[a.campaign] ?? `Campaign #${a.campaign}`}</td>
                   <td className="px-5 py-3.5">
                     <Badge variant="secondary" className="text-xs capitalize">{a.campaign_info?.status ?? "—"}</Badge>
                   </td>
@@ -203,7 +209,7 @@ export default function AudienceList() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         title="Delete"
-                        onClick={() => openDelete(a.id, a.campaign, a.campaign_info?.name ?? `Campaign #${a.campaign}`)}
+                        onClick={() => openDelete(a.id, a.campaign, campaignNames[a.campaign] ?? `Campaign #${a.campaign}`)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
