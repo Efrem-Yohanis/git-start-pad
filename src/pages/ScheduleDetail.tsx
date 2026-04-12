@@ -128,29 +128,23 @@ export default function ScheduleDetail() {
       </div>
 
       {/* Campaign Info */}
-      {s.campaign_info && (
-        <Card className="p-5 shadow-card">
-          <h3 className="text-sm font-semibold mb-3">Campaign Info</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Name</p>
-              <p className="font-medium">{s.campaign_info.name}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Status</p>
-              <Badge className={`text-xs border ${STATUS_COLORS[s.campaign_info.status] ?? "bg-muted"}`}>{s.campaign_info.status}</Badge>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Execution</p>
-              <p className="font-medium">{s.campaign_info.execution_status}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Campaign ID</p>
-              <Link to={`/campaigns/${s.campaign_info.id}`} className="font-medium text-primary hover:underline">#{s.campaign_info.id}</Link>
-            </div>
+      <Card className="p-5 shadow-card">
+        <h3 className="text-sm font-semibold mb-3">Campaign Info</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Campaign</p>
+            <p className="font-medium">{s.campaign_name}</p>
           </div>
-        </Card>
-      )}
+          <div>
+            <p className="text-xs text-muted-foreground">Campaign Status</p>
+            <Badge className={`text-xs border ${STATUS_COLORS[s.campaign_status] ?? "bg-muted"}`}>{s.campaign_status_display}</Badge>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Campaign ID</p>
+            <Link to={`/campaigns/${s.campaign}`} className="font-medium text-primary hover:underline">#{s.campaign}</Link>
+          </div>
+        </div>
+      </Card>
 
       {/* Schedule Configuration */}
       <Card className="p-5 shadow-card space-y-4">
