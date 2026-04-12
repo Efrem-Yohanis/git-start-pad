@@ -52,13 +52,14 @@ export default function ScheduleList() {
   async function loadData() {
     setLoading(true);
     try {
-      const [listRes, summaryRes] = await Promise.all([
-        fetchSchedules(page, pageSize, filters),
-        page === 1 ? fetchScheduleSummary() : Promise.resolve(null),
-      ]);
+      const listRes = await fetchSchedules(page, pageSize, filters);
       setSchedules(listRes.results);
       setTotalCount(listRes.count);
-      if (summaryRes) setSummary(summaryRes);
+      // Compute summary from list data
+      const active = listRes.results.filter(s => s.is_active).length;
+      const today = new Date().toISOString().split("T")[0];
+      const runningToday = listRes.results.filter(s => s.next_run_date === today && s.is_active).length;
+      setSummary({ total: listRes.count, active, inactive: listRes.results.length - active, today: runningToday });
     } catch (e) {
       console.error("Failed to load schedules", e);
     } finally {
