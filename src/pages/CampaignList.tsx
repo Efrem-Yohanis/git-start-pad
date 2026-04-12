@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useCampaigns } from "@/context/CampaignContext";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCampaigns, deleteCampaignApi, startCampaign, pauseCampaign, stopCampaign, type ApiCampaign } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,39 +13,118 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import type { CampaignStatus } from "@/types/campaign";
-import { SCHEDULE_TYPE_LABELS } from "@/types/campaign";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Plus, Search, TrendingUp, Zap, Clock, RotateCcw,
-  Eye, Pencil, Trash2, ChevronLeft, ChevronRight,
+  Plus, Search, Eye, Pencil, Trash2, ChevronLeft, ChevronRight,
+  Play, Pause, Square, Clock, ArrowUpDown,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
-const STATUS_STYLES: Record<CampaignStatus, string> = {
+const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  active: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  paused: "bg-amber-50 text-amber-700 border-amber-200",
+  active: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800",
+  paused: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
   completed: "bg-primary/10 text-primary border-primary/20",
   archived: "bg-secondary text-secondary-foreground",
 };
 
-export default function CampaignList() {
-  const { campaigns, deleteCampaign, loading, error, refetch, totalCount, page, setPage, pageSize, setPageSize } = useCampaigns();
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<CampaignStatus | "all">("all");
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+const EXEC_STYLES: Record<string, string> = {
+  PENDING: "bg-muted text-muted-foreground",
+  PROCESSING: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300",
+  COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+  FAILED: "bg-destructive/10 text-destructive border-destructive/20",
+  PAUSED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
+  STOPPED: "bg-muted text-muted-foreground",
+};
 
-  const filtered = campaigns.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+type ActionType = "start" | "pause" | "stop" | "delete";
+
+interface PendingAction {
+  type: ActionType;
+  campaignId: number;
+  campaignName: string;
+}
+
+const ACTION_CONFIG: Record<ActionType, { title: string; description: string; buttonLabel: string; destructive: boolean }> = {
+  start: { title: "Start campaign", description: "This will begin sending messages to all recipients.", buttonLabel: "Start", destructive: false },
+  pause: { title: "Pause campaign", description: "This will temporarily pause message delivery. You can resume later.", buttonLabel: "Pause", destructive: false },
+  stop: { title: "Stop campaign", description: "This will permanently stop the campaign. This action cannot be undone.", buttonLabel: "Stop", destructive: true },
+  delete: { title: "Delete campaign", description: "This action cannot be undone. The campaign will be permanently removed.", buttonLabel: "Delete", destructive: true },
+};
+
+export default function CampaignList() {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [execFilter, setExecFilter] = useState<string>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [ordering, setOrdering] = useState("-created_at");
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["campaigns", page, pageSize, statusFilter, execFilter, search, ordering],
+    queryFn: () => fetchCampaigns({
+      page,
+      pageSize,
+      status: statusFilter !== "all" ? statusFilter : undefined,
+      execution_status: execFilter !== "all" ? execFilter : undefined,
+      search: search || undefined,
+      ordering,
+    }),
+    refetchInterval: 30000,
   });
 
-  const total = campaigns.length;
-  const active = campaigns.filter((c) => c.status === "active").length;
-  const oneTime = campaigns.filter((c) => c.schedule?.schedule_type === "once").length;
-  const recurring = campaigns.filter((c) => c.schedule?.schedule_type !== "once" && c.schedule).length;
+  const campaigns = data?.results ?? [];
+  const totalCount = data?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!pendingAction) return;
+    setActionLoading(true);
+    try {
+      switch (pendingAction.type) {
+        case "start":
+          await startCampaign(pendingAction.campaignId);
+          toast.success(`Campaign "${pendingAction.campaignName}" started`);
+          break;
+        case "pause":
+          await pauseCampaign(pendingAction.campaignId);
+          toast.success(`Campaign "${pendingAction.campaignName}" paused`);
+          break;
+        case "stop":
+          await stopCampaign(pendingAction.campaignId);
+          toast.success(`Campaign "${pendingAction.campaignName}" stopped`);
+          break;
+        case "delete":
+          await deleteCampaignApi(pendingAction.campaignId);
+          toast.success(`Campaign "${pendingAction.campaignName}" deleted`);
+          break;
+      }
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || `Failed to ${pendingAction.type} campaign`);
+    } finally {
+      setActionLoading(false);
+      setPendingAction(null);
+    }
+  }, [pendingAction, refetch]);
+
+  const toggleOrdering = (field: string) => {
+    setOrdering((prev) => prev === field ? `-${field}` : prev === `-${field}` ? field : `-${field}`);
+    setPage(1);
+  };
+
+  const actionConfig = pendingAction ? ACTION_CONFIG[pendingAction.type] : null;
 
   return (
     <div className="space-y-6">
@@ -52,7 +132,9 @@ export default function CampaignList() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage and monitor your campaigns</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {totalCount} campaign{totalCount !== 1 ? "s" : ""} total
+          </p>
         </div>
         <Link to="/campaigns/new">
           <Button className="gap-2 shadow-soft">
@@ -62,28 +144,20 @@ export default function CampaignList() {
         </Link>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <SummaryCard icon={TrendingUp} label="Total" value={total} />
-        <SummaryCard icon={Zap} label="Active" value={active} accent />
-        <SummaryCard icon={Clock} label="One-time" value={oneTime} />
-        <SummaryCard icon={RotateCcw} label="Recurring" value={recurring} />
-      </div>
-
       {/* Filters */}
-      <div className="flex gap-3">
-        <div className="relative max-w-xs flex-1">
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative max-w-xs flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search campaigns..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as CampaignStatus | "all")}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-40">
-            <SelectValue />
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
@@ -94,33 +168,48 @@ export default function CampaignList() {
             <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={execFilter} onValueChange={(v) => { setExecFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Execution status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All execution</SelectItem>
+            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="PROCESSING">Processing</SelectItem>
+            <SelectItem value="COMPLETED">Completed</SelectItem>
+            <SelectItem value="FAILED">Failed</SelectItem>
+            <SelectItem value="PAUSED">Paused</SelectItem>
+            <SelectItem value="STOPPED">Stopped</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">10 / page</SelectItem>
+            <SelectItem value="20">20 / page</SelectItem>
+            <SelectItem value="50">50 / page</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
-      {loading ? (
+      {isLoading ? (
         <Card className="shadow-card overflow-hidden">
           <div className="border-b bg-muted/50 px-5 py-3.5">
-            <div className="grid grid-cols-9 gap-4">
-              {Array.from({ length: 9 }).map((_, i) => (
+            <div className="grid grid-cols-8 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-3 w-16" />
               ))}
             </div>
           </div>
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="border-b last:border-b-0 px-5 py-4">
-              <div className="grid grid-cols-9 gap-4 items-center">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-5 w-10 rounded-full" />
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 w-20" />
-                <div className="flex gap-2 justify-end">
-                  <Skeleton className="h-8 w-8 rounded-lg" />
-                  <Skeleton className="h-8 w-8 rounded-lg" />
-                </div>
+              <div className="grid grid-cols-8 gap-4 items-center">
+                {Array.from({ length: 8 }).map((_, j) => (
+                  <Skeleton key={j} className="h-4 w-full" />
+                ))}
               </div>
             </div>
           ))}
@@ -128,8 +217,8 @@ export default function CampaignList() {
       ) : error ? (
         <Card className="shadow-card">
           <CardContent className="py-16 text-center">
-            <p className="text-destructive mb-3">{error}</p>
-            <Button variant="outline" size="sm" onClick={refetch}>Retry</Button>
+            <p className="text-destructive mb-3">{(error as Error).message}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
           </CardContent>
         </Card>
       ) : (
@@ -138,75 +227,28 @@ export default function CampaignList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Name</th>
+                  <SortableHeader label="Name" field="name" current={ordering} onToggle={toggleOrdering} />
                   <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
                   <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Execution</th>
-                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
                   <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Sender</th>
                   <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Channels</th>
-                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Recipients</th>
-                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Start</th>
+                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider min-w-[180px]">Progress</th>
+                  <SortableHeader label="Created" field="created_at" current={ordering} onToggle={toggleOrdering} />
+                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Next Run</th>
+                  <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Ready</th>
                   <th className="text-right px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 && (
+                {campaigns.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-5 py-16 text-center text-muted-foreground">
+                    <td colSpan={10} className="px-5 py-16 text-center text-muted-foreground">
                       No campaigns found.
                     </td>
                   </tr>
                 )}
-                {filtered.map((c) => (
-                  <tr key={c.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
-                    <td className="px-5 py-3.5 font-medium">
-                      <Link to={`/campaigns/${c.id}`} className="hover:text-primary transition-colors">
-                        {c.name}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge className={`${STATUS_STYLES[c.status]} text-xs border`}>{c.status}</Badge>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {c.execution_status_display ? (
-                        <Badge variant="outline" className="text-xs">{c.execution_status_display}</Badge>
-                      ) : "—"}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {SCHEDULE_TYPE_LABELS[c.schedule?.schedule_type] || c.schedule?.schedule_type || "—"}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{c.sender_id || "—"}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex gap-1 flex-wrap">
-                        {c.channels?.map((ch) => (
-                          <Badge key={ch} variant="secondary" className="text-xs">
-                            {ch === "sms" ? "SMS" : ch === "app_notification" ? "App" : "Flash"}
-                          </Badge>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{c.audience?.total_count?.toLocaleString() ?? "0"}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{c.schedule?.start_date || "—"}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex gap-1 justify-end">
-                        <Link to={`/campaigns/${c.id}`}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                        </Link>
-                        <Link to={`/campaigns/${c.id}/edit`}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(c.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                {campaigns.map((c) => (
+                  <CampaignRow key={c.id} campaign={c} onAction={setPendingAction} />
                 ))}
               </tbody>
             </table>
@@ -217,21 +259,9 @@ export default function CampaignList() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages} · {totalCount} campaigns
-            </p>
-            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-              <SelectTrigger className="w-24 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 / page</SelectItem>
-                <SelectItem value="25">25 / page</SelectItem>
-                <SelectItem value="50">50 / page</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Page {page} of {totalPages} · {totalCount} campaigns
+          </p>
           <div className="flex gap-1">
             <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>
               <ChevronLeft className="h-4 w-4" />
@@ -243,21 +273,29 @@ export default function CampaignList() {
         </div>
       )}
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      {/* Confirmation dialog for all actions */}
+      <AlertDialog open={!!pendingAction} onOpenChange={() => setPendingAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete campaign</AlertDialogTitle>
+            <AlertDialogTitle>{actionConfig?.title}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The campaign will be permanently removed.
+              {pendingAction && (
+                <>
+                  <span className="font-medium text-foreground">{pendingAction.campaignName}</span>
+                  <br />
+                  {actionConfig?.description}
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleteId) deleteCampaign(deleteId); setDeleteId(null); }}
+              className={actionConfig?.destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+              onClick={handleConfirmAction}
+              disabled={actionLoading}
             >
-              Delete
+              {actionLoading ? "Processing..." : actionConfig?.buttonLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -266,20 +304,136 @@ export default function CampaignList() {
   );
 }
 
-function SummaryCard({ icon: Icon, label, value, accent }: { icon: React.ComponentType<{ className?: string }>; label: string; value: number; accent?: boolean }) {
+/* ---- Sub-components ---- */
+
+function SortableHeader({ label, field, current, onToggle }: {
+  label: string; field: string; current: string; onToggle: (f: string) => void;
+}) {
+  const isActive = current === field || current === `-${field}`;
+  const isDesc = current === `-${field}`;
   return (
-    <Card className="shadow-card hover:shadow-elevated transition-shadow">
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl shrink-0 ${accent ? "bg-primary/10" : "bg-muted"}`}>
-            <Icon className={`h-4 w-4 ${accent ? "text-primary" : "text-muted-foreground"}`} />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className={`text-xl font-bold ${accent ? "text-primary" : ""}`}>{value}</p>
-          </div>
+    <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => onToggle(field)}>
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${isActive ? "text-foreground" : ""} ${isActive && !isDesc ? "rotate-180" : ""}`} />
+      </button>
+    </th>
+  );
+}
+
+function CampaignRow({ campaign: c, onAction }: { campaign: ApiCampaign; onAction: (a: PendingAction) => void }) {
+  const channels = Array.isArray(c.channels) ? c.channels : Object.values(c.channels || {});
+  const progressPercent = (c as any).progress_percent ?? 0;
+  const totalMessages = (c as any).total_messages ?? 0;
+  const totalProcessed = (c as any).total_processed ?? 0;
+  const nextRun = (c as any).next_run;
+  const hasSchedule = (c as any).has_schedule;
+  const hasAudience = (c as any).has_audience;
+  const hasContent = (c as any).has_content;
+
+  const triggerAction = (type: ActionType) => {
+    onAction({ type, campaignId: c.id, campaignName: c.name });
+  };
+
+  return (
+    <tr className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
+      <td className="px-5 py-3.5 font-medium">
+        <Link to={`/campaigns/${c.id}`} className="hover:text-primary transition-colors">
+          {c.name}
+        </Link>
+      </td>
+      <td className="px-5 py-3.5">
+        <Badge className={`${STATUS_STYLES[c.status] || STATUS_STYLES.draft} text-xs border`}>
+          {(c as any).status_display || c.status}
+        </Badge>
+      </td>
+      <td className="px-5 py-3.5">
+        {c.execution_status_display ? (
+          <Badge className={`${EXEC_STYLES[c.execution_status] || ""} text-xs border`}>
+            {c.execution_status_display}
+          </Badge>
+        ) : "—"}
+      </td>
+      <td className="px-5 py-3.5 text-muted-foreground">{c.sender_id || "—"}</td>
+      <td className="px-5 py-3.5">
+        <div className="flex gap-1 flex-wrap">
+          {channels.map((ch: string) => (
+            <Badge key={ch} variant="secondary" className="text-xs">
+              {ch === "sms" ? "SMS" : ch === "app_notification" ? "App" : ch}
+            </Badge>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </td>
+      <td className="px-5 py-3.5">
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{totalProcessed.toLocaleString()} / {totalMessages.toLocaleString()}</span>
+            <span>{progressPercent.toFixed(0)}%</span>
+          </div>
+          <Progress value={progressPercent} className="h-1.5" />
+        </div>
+      </td>
+      <td className="px-5 py-3.5 text-muted-foreground text-xs">
+        {c.created_at ? formatDistanceToNow(new Date(c.created_at), { addSuffix: true }) : "—"}
+      </td>
+      <td className="px-5 py-3.5 text-muted-foreground text-xs">
+        {nextRun ? (
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {formatDistanceToNow(new Date(nextRun), { addSuffix: true })}
+          </div>
+        ) : "—"}
+      </td>
+      <td className="px-5 py-3.5">
+        <div className="flex gap-1">
+          <ReadinessIndicator ok={hasSchedule} label="S" />
+          <ReadinessIndicator ok={hasAudience} label="A" />
+          <ReadinessIndicator ok={hasContent} label="C" />
+        </div>
+      </td>
+      <td className="px-5 py-3.5">
+        <div className="flex gap-1 justify-end">
+          <Link to={`/campaigns/${c.id}`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3.5 w-3.5" /></Button>
+          </Link>
+          <Link to={`/campaigns/${c.id}/edit`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-3.5 w-3.5" /></Button>
+          </Link>
+          {c.can_start && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:text-emerald-700" onClick={() => triggerAction("start")} title="Start">
+              <Play className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {c.can_pause && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:text-amber-700" onClick={() => triggerAction("pause")} title="Pause">
+              <Pause className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {c.can_stop && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => triggerAction("stop")} title="Stop">
+              <Square className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => triggerAction("delete")} title="Delete">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ReadinessIndicator({ ok, label }: { ok?: boolean; label: string }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center h-5 w-5 rounded text-[10px] font-bold border ${
+        ok
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
+          : "bg-muted text-muted-foreground border-border"
+      }`}
+      title={`${label === "S" ? "Schedule" : label === "A" ? "Audience" : "Content"}: ${ok ? "Ready" : "Missing"}`}
+    >
+      {label}
+    </span>
   );
 }

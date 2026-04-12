@@ -29,9 +29,7 @@ export default function AudienceCreate() {
     try {
       await createAudience({
         campaign: campaignIdNum,
-        database_table: "",
-        id_field: "",
-        filter_condition: "",
+        recipients: recipients.map(r => ({ msisdn: r.msisdn, lang: r.lang })),
       });
       toast.success(`Audience created with ${recipients.length} recipients`);
       navigate("/audiences");

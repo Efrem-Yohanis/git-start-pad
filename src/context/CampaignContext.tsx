@@ -11,7 +11,7 @@ function parseProgress(raw: ApiProgress | string | undefined): CampaignProgress 
     failed_count: raw.failed_count ?? 0,
     failed_delivery_count: 0,
     pending_count: raw.pending_count ?? 0,
-    progress_percent: raw.progress_percent ?? 0,
+    progress_percent: Number(raw.progress_percent ?? 0),
     status: raw.status ?? "PENDING",
     started_at: "",
     completed_at: null,
@@ -155,7 +155,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetchCampaigns(page, pageSize);
+      const data = await apiFetchCampaigns({ page, pageSize });
       setCampaigns(data.results.map(mapApiCampaign));
       setTotalCount(data.count);
     } catch (e: any) {

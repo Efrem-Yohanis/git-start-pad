@@ -1,4 +1,4 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL || "https://new-comaping.onrender.com/").replace(/\/+$/, "");
 
 function getToken(): string | null {
   return localStorage.getItem("auth_token");

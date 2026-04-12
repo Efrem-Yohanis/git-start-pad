@@ -72,6 +72,26 @@ export interface RecipientsPreview {
   has_more: boolean;
 }
 
+/* -------- Payload types -------- */
+
+export interface AudienceRecipient {
+  msisdn: string;
+  lang: string;
+}
+
+export interface AudienceCreatePayload {
+  campaign: number;
+  recipients: AudienceRecipient[];
+}
+
+export interface AudienceUpdatePayload {
+  campaign?: number;
+  recipients: AudienceRecipient[];
+}
+
+/* -------- API calls -------- */
+
+/** GET /api/audiences/ */
 export async function fetchAudiences(page = 1, pageSize = 10, filters?: Record<string, string>) {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (filters) Object.entries(filters).forEach(([k, v]) => v && params.set(k, v));
@@ -79,38 +99,31 @@ export async function fetchAudiences(page = 1, pageSize = 10, filters?: Record<s
   return handleResponse<PaginatedResponse<ApiAudienceListItem>>(res);
 }
 
+/** GET /api/audiences/:id/ */
 export async function fetchAudienceDetail(id: number) {
   const res = await authFetch(`${API_BASE}/api/audiences/${id}/`, { headers: authHeaders() });
   return handleResponse<ApiAudienceDetail>(res);
 }
 
+/** GET /api/audiences/summary/ */
 export async function fetchAudienceSummary() {
   const res = await authFetch(`${API_BASE}/api/audiences/summary/`, { headers: authHeaders() });
   return handleResponse<AudienceSummary>(res);
 }
 
+/** GET /api/audiences/:id/statistics/ */
 export async function fetchAudienceStatistics(id: number) {
   const res = await authFetch(`${API_BASE}/api/audiences/${id}/statistics/`, { headers: authHeaders() });
   return handleResponse<AudienceStatistics>(res);
 }
 
+/** GET /api/audiences/:id/recipients_preview/ */
 export async function fetchRecipientsPreview(id: number) {
   const res = await authFetch(`${API_BASE}/api/audiences/${id}/recipients_preview/`, { headers: authHeaders() });
   return handleResponse<RecipientsPreview>(res);
 }
 
-export async function deleteAudienceById(id: number) {
-  const res = await authFetch(`${API_BASE}/api/audiences/${id}/`, { method: "DELETE", headers: authHeaders() });
-  return handleResponse<void>(res);
-}
-
-export interface AudienceCreatePayload {
-  campaign: number;
-  database_table: string;
-  id_field: string;
-  filter_condition?: string;
-}
-
+/** POST /api/audiences/ — create with campaign + recipients */
 export async function createAudience(payload: AudienceCreatePayload) {
   const res = await authFetch(`${API_BASE}/api/audiences/`, {
     method: "POST",
@@ -120,11 +133,34 @@ export async function createAudience(payload: AudienceCreatePayload) {
   return handleResponse<ApiAudienceDetail>(res);
 }
 
-export async function updateAudience(id: number, payload: Partial<AudienceCreatePayload>) {
+// Alias
+export const createAudienceStandalone = createAudience;
+
+/** PUT /api/audiences/:id/ — full update with campaign + recipients */
+export async function updateAudienceFull(id: number, payload: AudienceCreatePayload) {
+  const res = await authFetch(`${API_BASE}/api/audiences/${id}/`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<ApiAudienceDetail>(res);
+}
+
+/** PATCH /api/audiences/:id/ — partial update (recipients only is fine) */
+export async function updateAudience(id: number, payload: AudienceUpdatePayload) {
   const res = await authFetch(`${API_BASE}/api/audiences/${id}/`, {
     method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify(payload),
   });
   return handleResponse<ApiAudienceDetail>(res);
+}
+
+/** DELETE /api/audiences/:campaignId/ */
+export async function deleteAudienceById(campaignId: number) {
+  const res = await authFetch(`${API_BASE}/api/audiences/${campaignId}/`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return handleResponse<void>(res);
 }

@@ -27,7 +27,7 @@ export default function AudienceList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; campaignId: number; name: string } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -63,8 +63,8 @@ export default function AudienceList() {
     setFormOpen(true);
   }
 
-  function openDelete(id: number, name: string) {
-    setDeleteTarget({ id, name });
+  function openDelete(id: number, campaignId: number, name: string) {
+    setDeleteTarget({ id, campaignId, name });
     setDeleteOpen(true);
   }
 
@@ -203,7 +203,7 @@ export default function AudienceList() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         title="Delete"
-                        onClick={() => openDelete(a.id, a.campaign_info?.name ?? `Campaign #${a.campaign}`)}
+                        onClick={() => openDelete(a.id, a.campaign, a.campaign_info?.name ?? `Campaign #${a.campaign}`)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -243,7 +243,7 @@ export default function AudienceList() {
       <DeleteAudienceDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        audienceId={deleteTarget?.id ?? null}
+        campaignId={deleteTarget?.campaignId ?? null}
         audienceName={deleteTarget?.name}
         onSuccess={handleMutationSuccess}
       />

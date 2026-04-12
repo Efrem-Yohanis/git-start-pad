@@ -13,12 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { createAudience, updateAudience, fetchAudienceDetail } from "@/lib/api/audiences";
-import type { AudienceCreatePayload, ApiAudienceDetail } from "@/lib/api/audiences";
+import type { ApiAudienceDetail, AudienceRecipient } from "@/lib/api/audiences";
 
 interface AudienceFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  audienceId?: number | null; // null/undefined = create mode
+  audienceId?: number | null;
   onSuccess: () => void;
 }
 
@@ -31,55 +31,51 @@ export default function AudienceFormDialog({
   const isEdit = !!audienceId;
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
-
   const [campaign, setCampaign] = useState("");
-  const [databaseTable, setDatabaseTable] = useState("");
-  const [idField, setIdField] = useState("");
-  const [filterCondition, setFilterCondition] = useState("");
+  const [recipientsText, setRecipientsText] = useState("");
 
-  // Pre-fill for edit
   useEffect(() => {
     if (open && audienceId) {
       setFetching(true);
       fetchAudienceDetail(audienceId)
         .then((d: ApiAudienceDetail) => {
           setCampaign(String(d.campaign));
-          setDatabaseTable(d.database_table || "");
-          setIdField(d.id_field || "");
-          setFilterCondition(d.filter_condition || "");
+          const preview = d.recipients_preview || [];
+          setRecipientsText(preview.map((r) => `${r.msisdn},${r.lang}`).join("\n"));
         })
         .catch(() => toast.error("Failed to load audience data"))
         .finally(() => setFetching(false));
     } else if (open) {
-      // Reset for create
       setCampaign("");
-      setDatabaseTable("");
-      setIdField("");
-      setFilterCondition("");
+      setRecipientsText("");
     }
   }, [open, audienceId]);
 
+  function parseRecipients(text: string): AudienceRecipient[] {
+    return text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [msisdn, lang = "en"] = line.split(",").map((s) => s.trim());
+        return { msisdn, lang };
+      });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!campaign || !databaseTable || !idField) {
-      toast.error("Please fill in all required fields");
+    const recipients = parseRecipients(recipientsText);
+    if (!campaign || recipients.length === 0) {
+      toast.error("Please provide a campaign ID and at least one recipient");
       return;
     }
-
-    const payload: AudienceCreatePayload = {
-      campaign: Number(campaign),
-      database_table: databaseTable,
-      id_field: idField,
-      ...(filterCondition ? { filter_condition: filterCondition } : {}),
-    };
-
     setLoading(true);
     try {
       if (isEdit) {
-        await updateAudience(audienceId!, payload);
+        await updateAudience(audienceId!, { recipients });
         toast.success("Audience updated successfully");
       } else {
-        await createAudience(payload);
+        await createAudience({ campaign: Number(campaign), recipients });
         toast.success("Audience created successfully");
       }
       onOpenChange(false);
@@ -98,11 +94,10 @@ export default function AudienceFormDialog({
           <DialogTitle>{isEdit ? "Edit Audience" : "Create Audience"}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the audience configuration below."
-              : "Fill in the details to create a new audience."}
+              ? "Update the audience recipients below."
+              : "Fill in the campaign ID and recipients to create a new audience."}
           </DialogDescription>
         </DialogHeader>
-
         {fetching ? (
           <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
         ) : (
@@ -116,39 +111,22 @@ export default function AudienceFormDialog({
                 onChange={(e) => setCampaign(e.target.value)}
                 placeholder="e.g. 1"
                 required
+                disabled={isEdit}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="database_table">Database Table *</Label>
-              <Input
-                id="database_table"
-                value={databaseTable}
-                onChange={(e) => setDatabaseTable(e.target.value)}
-                placeholder="e.g. recipients"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="id_field">ID Field *</Label>
-              <Input
-                id="id_field"
-                value={idField}
-                onChange={(e) => setIdField(e.target.value)}
-                placeholder="e.g. msisdn"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="filter_condition">Filter Condition</Label>
+              <Label htmlFor="recipients">Recipients (one per line: msisdn,lang) *</Label>
               <Textarea
-                id="filter_condition"
-                value={filterCondition}
-                onChange={(e) => setFilterCondition(e.target.value)}
-                placeholder="e.g. status = 'active'"
-                rows={2}
+                id="recipients"
+                value={recipientsText}
+                onChange={(e) => setRecipientsText(e.target.value)}
+                placeholder={"+251911234567,en\n+251922345678,am"}
+                rows={6}
               />
+              <p className="text-xs text-muted-foreground">
+                {parseRecipients(recipientsText).length} recipient(s) parsed
+              </p>
             </div>
-
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

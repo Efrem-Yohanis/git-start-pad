@@ -3,6 +3,7 @@ import type { PaginatedResponse } from "./base";
 
 export interface ApiScheduleListItem {
   id: number;
+  campaign: number;
   campaign_name: string;
   campaign_info?: {
     id: number;
@@ -17,7 +18,7 @@ export interface ApiScheduleListItem {
   current_window_status: string;
   current_window_status_display: string;
   schedule_summary: string;
-  upcoming_windows: unknown[];
+  upcoming_windows: { date: string; windows: number[]; type: string; day_name?: string }[];
   start_date: string;
   end_date: string | null;
   run_days: number[];
@@ -52,6 +53,22 @@ export interface ScheduleSummary {
   running_today: number;
 }
 
+export interface ScheduleTypeOption {
+  value: string;
+  display: string;
+}
+
+export interface ScheduleCreatePayload {
+  campaign: number;
+  schedule_type: string;
+  start_date: string;
+  end_date?: string | null;
+  run_days?: number[];
+  time_windows: { start: string; end: string }[];
+  timezone: string;
+  auto_reset: boolean;
+}
+
 export async function fetchSchedules(page = 1, pageSize = 10, filters?: Record<string, string>) {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (filters) Object.entries(filters).forEach(([k, v]) => v && params.set(k, v));
@@ -67,6 +84,34 @@ export async function fetchScheduleDetail(id: number) {
 export async function fetchScheduleSummary() {
   const res = await authFetch(`${API_BASE}/api/schedules/summary/`, { headers: authHeaders() });
   return handleResponse<ScheduleSummary>(res);
+}
+
+export async function fetchScheduleTypes() {
+  const res = await authFetch(`${API_BASE}/api/schedules/schedule_types/`, { headers: authHeaders() });
+  return handleResponse<ScheduleTypeOption[]>(res);
+}
+
+export async function fetchUpcomingWindows(id: number, limit = 5) {
+  const res = await authFetch(`${API_BASE}/api/schedules/${id}/upcoming_windows/?limit=${limit}`, { headers: authHeaders() });
+  return handleResponse<{ date: string; windows: number[]; type: string; day_name?: string }[]>(res);
+}
+
+export async function createSchedule(data: ScheduleCreatePayload) {
+  const res = await authFetch(`${API_BASE}/api/schedules/`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ApiScheduleDetail>(res);
+}
+
+export async function updateScheduleById(id: number, data: Record<string, unknown>) {
+  const res = await authFetch(`${API_BASE}/api/schedules/${id}/`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ApiScheduleDetail>(res);
 }
 
 export async function deleteScheduleById(id: number) {
@@ -87,13 +132,4 @@ export async function deactivateSchedule(id: number) {
 export async function resetSchedule(id: number) {
   const res = await authFetch(`${API_BASE}/api/schedules/${id}/reset/`, { method: "POST", headers: authHeaders() });
   return handleResponse(res);
-}
-
-export async function updateScheduleById(id: number, data: Record<string, unknown>) {
-  const res = await authFetch(`${API_BASE}/api/schedules/${id}/`, {
-    method: "PATCH",
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return handleResponse<ApiScheduleDetail>(res);
 }

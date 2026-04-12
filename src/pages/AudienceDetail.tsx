@@ -268,7 +268,7 @@ export default function AudienceDetail() {
       <DeleteAudienceDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        audienceId={Number(id)}
+        campaignId={audience?.campaign ?? null}
         audienceName={audience.campaign_info?.name ?? `Campaign #${audience.campaign}`}
         onSuccess={() => navigate("/audiences")}
       />

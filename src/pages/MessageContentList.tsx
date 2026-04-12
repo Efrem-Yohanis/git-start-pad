@@ -10,14 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
 import { Plus, MessageSquareText, Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { fetchMessageContents, fetchMessageContentSummary, deleteMessageContentById } from "@/lib/api/messages";
-import type { ApiMessageContentListItem, MessageContentSummary } from "@/lib/api/messages";
+import { fetchMessageContents, deleteMessageContentById } from "@/lib/api/messages";
+import type { ApiMessageContentListItem } from "@/lib/api/messages";
 import { toast } from "sonner";
 
 export default function MessageContentList() {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ApiMessageContentListItem[]>([]);
-  const [summary, setSummary] = useState<MessageContentSummary | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -54,13 +54,9 @@ export default function MessageContentList() {
     setLoading(true);
     try {
       const filters = buildFilters();
-      const [listRes, summaryRes] = await Promise.all([
-        fetchMessageContents(page, pageSize, Object.keys(filters).length > 0 ? filters : undefined),
-        page === 1 ? fetchMessageContentSummary() : Promise.resolve(null),
-      ]);
+      const listRes = await fetchMessageContents(page, pageSize, Object.keys(filters).length > 0 ? filters : undefined);
       setMessages(listRes.results);
       setTotalCount(listRes.count);
-      if (summaryRes) setSummary(summaryRes);
     } catch (e) {
       console.error("Failed to load message contents", e);
     } finally {
@@ -107,16 +103,21 @@ export default function MessageContentList() {
         </Link>
       </div>
 
-      {summary && (
+      {totalCount > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Messages</p>
-            <p className="text-2xl font-semibold">{summary.total_message_contents}</p>
+            <p className="text-2xl font-semibold">{totalCount}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">By Default Language</p>
             <div className="flex flex-wrap gap-1 mt-1">
-              {Object.entries(summary.by_default_language).map(([lang, count]) => (
+              {Object.entries(
+                messages.reduce<Record<string, number>>((acc, m) => {
+                  acc[m.default_language] = (acc[m.default_language] || 0) + 1;
+                  return acc;
+                }, {})
+              ).map(([lang, count]) => (
                 <Badge key={lang} variant="outline" className="text-xs">
                   {LANGUAGE_LABELS[lang as Language] ?? lang}: {count}
                 </Badge>
@@ -124,10 +125,10 @@ export default function MessageContentList() {
             </div>
           </Card>
           <Card className="p-4 shadow-card">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Completeness</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Languages Used</p>
             <div className="flex flex-wrap gap-1 mt-1">
-              {Object.entries(summary.content_completeness).map(([status, count]) => (
-                <Badge key={status} variant="secondary" className="text-xs capitalize">{status}: {count}</Badge>
+              {[...new Set(messages.flatMap(m => m.languages_available))].map((lang) => (
+                <Badge key={lang} variant="secondary" className="text-xs">{LANGUAGE_LABELS[lang as Language] ?? lang}</Badge>
               ))}
             </div>
           </Card>
@@ -223,11 +224,13 @@ export default function MessageContentList() {
                 </tr>
               )}
               {!loading && messages.map((m) => {
-                const completeness = m.language_completeness;
+                const langCount = m.languages_available?.length || Object.keys(m.content).length;
+                const totalLangs = 5; // en, am, ti, om, so
+                const completeness = Math.round((langCount / totalLangs) * 100);
                 return (
                   <tr key={m.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
                     <td className="px-5 py-3.5 font-medium">
-                      {m.campaign_info?.name ?? `Campaign #${m.campaign}`}
+                      Campaign #{m.campaign}
                     </td>
                     <td className="px-5 py-3.5">
                       <Badge variant="outline" className="text-xs">{LANGUAGE_LABELS[m.default_language as Language] ?? m.default_language}</Badge>
@@ -240,11 +243,9 @@ export default function MessageContentList() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      {completeness ? (
-                        <span className={`text-xs font-medium ${completeness.completeness_percentage === 100 ? "text-emerald-600" : "text-amber-600"}`}>
-                          {completeness.completeness_percentage.toFixed(0)}%
-                        </span>
-                      ) : "—"}
+                      <span className={`text-xs font-medium ${completeness === 100 ? "text-emerald-600" : "text-amber-600"}`}>
+                        {completeness}%
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground truncate max-w-[200px] text-xs">
                       {m.preview && typeof m.preview === "object" ? m.preview.preview?.slice(0, 60) : "—"}
@@ -291,7 +292,7 @@ export default function MessageContentList() {
           <DialogHeader>
             <DialogTitle>Delete Message Content</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete message content for "{deleteTarget?.campaign_info?.name ?? `Campaign #${deleteTarget?.campaign}`}"? This cannot be undone.
+              Are you sure you want to delete message content for "Campaign #{deleteTarget?.campaign}"? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

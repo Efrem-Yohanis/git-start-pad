@@ -1,21 +1,23 @@
-import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { useCampaigns } from "@/context/CampaignContext";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CampaignStatus, Channel } from "@/types/campaign";
-import { CHANNEL_LABELS, SCHEDULE_TYPE_LABELS } from "@/types/campaign";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  TrendingUp, Zap, CheckCircle2, Users, Plus, ArrowRight,
+  TrendingUp, Zap, CheckCircle2, Users, Send, AlertTriangle,
+  Plus, ArrowRight, BarChart3, Target, RefreshCw,
 } from "lucide-react";
+import { fetchDashboardSummary, type DashboardSummary } from "@/lib/api/dashboard";
+import { fetchCampaigns, type ApiCampaign } from "@/lib/api";
+import { formatDistanceToNow } from "date-fns";
 
-const STATUS_COLORS: Record<CampaignStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   draft: "hsl(220 10% 60%)",
   active: "hsl(152 60% 45%)",
   paused: "hsl(40 90% 50%)",
@@ -23,75 +25,62 @@ const STATUS_COLORS: Record<CampaignStatus, string> = {
   archived: "hsl(220 10% 75%)",
 };
 
-const CHANNEL_COLORS: Record<Channel, string> = {
-  sms: "hsl(220 72% 50%)",
-  app_notification: "hsl(152 60% 45%)",
-  flash_sms: "hsl(270 60% 55%)",
+const STATUS_BADGE_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  active: "default",
+  completed: "secondary",
+  draft: "outline",
+  paused: "destructive",
 };
 
 export default function Dashboard() {
-  const { campaigns, loading } = useCampaigns();
+  const { data: summary, isLoading: summaryLoading, refetch } = useQuery<DashboardSummary>({
+    queryKey: ["dashboard-summary"],
+    queryFn: fetchDashboardSummary,
+    refetchInterval: 30000,
+  });
 
-  const statusData = useMemo(() => {
-    const counts: Record<CampaignStatus, number> = { draft: 0, active: 0, paused: 0, completed: 0, archived: 0 };
-    campaigns.forEach((c) => counts[c.status]++);
-    return Object.entries(counts)
-      .filter(([, v]) => v > 0)
-      .map(([status, count]) => ({ name: status.charAt(0).toUpperCase() + status.slice(1), value: count, fill: STATUS_COLORS[status as CampaignStatus] }));
-  }, [campaigns]);
+  const { data: activeCampaigns, isLoading: activeLoading } = useQuery({
+    queryKey: ["campaigns-active"],
+    queryFn: () => fetchCampaigns({ page: 1, pageSize: 5 }),
+    select: (data) => data.results.filter((c: ApiCampaign) => c.status === "active" || c.execution_status === "running"),
+    refetchInterval: 15000,
+  });
 
-  const channelData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    campaigns.forEach((c) => c.channels?.forEach((ch) => { counts[ch] = (counts[ch] || 0) + 1; }));
-    return Object.entries(counts).map(([ch, count]) => ({
-      name: CHANNEL_LABELS[ch as Channel] ?? ch,
-      count,
-      fill: CHANNEL_COLORS[ch as Channel] ?? "hsl(220 72% 50%)",
-    }));
-  }, [campaigns]);
+  const loading = summaryLoading;
 
-  const scheduleData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    campaigns.forEach((c) => {
-      const t = c.schedule?.schedule_type;
-      if (t) counts[t] = (counts[t] || 0) + 1;
-    });
-    return Object.entries(counts).map(([type, count]) => ({
-      name: SCHEDULE_TYPE_LABELS[type as keyof typeof SCHEDULE_TYPE_LABELS] ?? type,
-      count,
-    }));
-  }, [campaigns]);
+  const statusData = summary?.by_status
+    ? Object.entries(summary.by_status)
+        .filter(([, v]) => v > 0)
+        .map(([status, count]) => ({
+          name: status.charAt(0).toUpperCase() + status.slice(1),
+          value: count,
+          fill: STATUS_COLORS[status] ?? "hsl(220 10% 60%)",
+        }))
+    : [];
 
-  const recentCampaigns = useMemo(
-    () => [...campaigns].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 5),
-    [campaigns]
-  );
-
-  const active = campaigns.filter((c) => c.status === "active").length;
-  const total = campaigns.length;
-  const totalRecipients = campaigns.reduce((s, c) => s + (c.audience?.total_count ?? 0), 0);
-  const completedCount = campaigns.filter((c) => c.status === "completed").length;
+  const deliveryData = summary
+    ? [
+        { name: "Delivered", value: summary.total_delivered, fill: "hsl(152 60% 45%)" },
+        { name: "Failed", value: summary.total_failed, fill: "hsl(0 72% 51%)" },
+        { name: "Pending", value: Math.max(0, summary.total_sent - summary.total_delivered - summary.total_failed), fill: "hsl(40 90% 50%)" },
+      ].filter((d) => d.value > 0)
+    : [];
 
   if (loading) {
     return (
       <div className="space-y-8">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-10 w-36 rounded-lg" />
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-36" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="shadow-soft">
-              <CardContent className="pt-6">
-                <Skeleton className="h-4 w-20 mb-3" />
-                <Skeleton className="h-8 w-16" />
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i}><CardContent className="pt-5 pb-5"><Skeleton className="h-4 w-20 mb-3" /><Skeleton className="h-8 w-16" /></CardContent></Card>
           ))}
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i} className="shadow-soft"><CardContent className="pt-6"><Skeleton className="h-56 w-full rounded-lg" /></CardContent></Card>
+            <Card key={i}><CardContent className="pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
           ))}
         </div>
       </div>
@@ -106,148 +95,181 @@ export default function Dashboard() {
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Overview of your campaign performance</p>
         </div>
-        <Link to="/campaigns/new">
-          <Button className="gap-2 shadow-soft">
-            <Plus className="h-4 w-4" />
-            Create campaign
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
+            <RefreshCw className="h-4 w-4" />
           </Button>
-        </Link>
+          <Link to="/campaigns/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create campaign
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <KPICard icon={TrendingUp} label="Total Campaigns" value={total} />
-        <KPICard icon={Zap} label="Active" value={active} accent />
-        <KPICard icon={CheckCircle2} label="Completed" value={completedCount} />
-        <KPICard icon={Users} label="Total Recipients" value={totalRecipients.toLocaleString()} />
+      {/* KPI Cards - Row 1: Campaign stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard icon={BarChart3} label="Total Campaigns" value={summary?.total_campaigns ?? 0} />
+        <KPICard icon={Zap} label="Active" value={summary?.active_campaigns ?? 0} accent />
+        <KPICard icon={CheckCircle2} label="Completed" value={summary?.completed_campaigns ?? 0} />
+        <KPICard icon={TrendingUp} label="Draft" value={summary?.draft_campaigns ?? 0} />
       </div>
 
-      {total === 0 ? (
-        <Card className="shadow-card">
-          <CardContent className="py-20 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-              <TrendingUp className="h-7 w-7 text-primary" />
-            </div>
-            <p className="text-muted-foreground mb-4">No campaigns yet. Create your first campaign to see analytics.</p>
-            <Link to="/campaigns/new">
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create campaign
-              </Button>
-            </Link>
+      {/* KPI Cards - Row 2: Delivery stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard icon={Users} label="Total Recipients" value={(summary?.total_recipients ?? 0).toLocaleString()} />
+        <KPICard icon={Send} label="Total Sent" value={(summary?.total_sent ?? 0).toLocaleString()} />
+        <KPICard icon={Target} label="Delivery Rate" value={`${summary?.avg_delivery_rate?.toFixed(1) ?? 0}%`} accent />
+        <KPICard icon={AlertTriangle} label="Failed" value={(summary?.total_failed ?? 0).toLocaleString()} destructive />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Status Distribution */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Campaign Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {statusData.length === 0 ? (
+              <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">No data available</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} innerRadius={50} paddingAngle={3} strokeWidth={0}
+                    label={({ name, value }) => `${name}: ${value}`}>
+                    {statusData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
-      ) : (
-        <>
-          {/* Charts */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="shadow-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Status Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} innerRadius={50} paddingAngle={3} strokeWidth={0} label={({ name, value }) => `${name}: ${value}`}>
-                      {statusData.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(220 13% 91%)", boxShadow: "var(--shadow-md)" }} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
 
-            <Card className="shadow-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Channel Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {channelData.length === 0 ? (
-                  <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">No channel data</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={channelData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(220 10% 46%)" />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="hsl(220 10% 46%)" />
-                      <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(220 13% 91%)", boxShadow: "var(--shadow-md)" }} />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                        {channelData.map((entry, i) => (
-                          <Cell key={i} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        {/* Delivery Breakdown */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Message Delivery Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {deliveryData.length === 0 ? (
+              <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">No delivery data</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={deliveryData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {deliveryData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Schedule + Recent */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="shadow-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Schedule Types</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {scheduleData.length === 0 ? (
-                  <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">No schedule data</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={scheduleData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" />
-                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} stroke="hsl(220 10% 46%)" />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={80} stroke="hsl(220 10% 46%)" />
-                      <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(220 13% 91%)", boxShadow: "var(--shadow-md)" }} />
-                      <Bar dataKey="count" fill="hsl(220 72% 50%)" radius={[0, 6, 6, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Recent Campaigns</CardTitle>
-                <Link to="/campaigns" className="text-xs text-primary hover:underline flex items-center gap-1">
-                  View all <ArrowRight className="h-3 w-3" />
-                </Link>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1">
-                  {recentCampaigns.map((c) => (
-                    <Link key={c.id} to={`/campaigns/${c.id}`} className="flex items-center justify-between py-2.5 hover:bg-accent rounded-lg px-3 -mx-3 transition-colors">
-                      <span className="text-sm font-medium truncate mr-3">{c.name}</span>
-                      <Badge variant="secondary" className="text-xs capitalize shrink-0">{c.status}</Badge>
+      {/* Active Campaigns + Recent */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Active Campaigns */}
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Campaigns</CardTitle>
+            <Link to="/campaigns" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {activeLoading ? (
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+            ) : !activeCampaigns?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No active campaigns</p>
+            ) : (
+              <div className="space-y-3">
+                {activeCampaigns.map((c: ApiCampaign) => {
+                  const progress = typeof c.progress === "object" ? c.progress.progress_percent : 0;
+                  return (
+                    <Link key={c.id} to={`/campaigns/${c.id}`} className="block p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium truncate mr-2">{c.name}</span>
+                        <Badge variant={STATUS_BADGE_VARIANT[c.status] ?? "secondary"} className="text-xs capitalize shrink-0">{c.execution_status_display || c.status}</Badge>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Progress value={progress} className="h-2 flex-1" />
+                        <span className="text-xs text-muted-foreground font-medium w-10 text-right">{progress}%</span>
+                      </div>
                     </Link>
-                  ))}
-                  {recentCampaigns.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-6">No campaigns</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Campaigns */}
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Recent Campaigns</CardTitle>
+            <Link to="/campaigns" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {!summary?.recent_campaigns?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No campaigns yet</p>
+            ) : (
+              <div className="space-y-1">
+                {summary.recent_campaigns.map((c) => (
+                  <Link key={c.id} to={`/campaigns/${c.id}`} className="flex items-center justify-between py-2.5 hover:bg-accent rounded-lg px-3 -mx-3 transition-colors">
+                    <div className="min-w-0 mr-3">
+                      <p className="text-sm font-medium truncate">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(c.updated_at), { addSuffix: true })}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={STATUS_BADGE_VARIANT[c.status] ?? "secondary"} className="text-xs capitalize">{c.status}</Badge>
+                      {c.progress_percent > 0 && (
+                        <span className="text-xs text-muted-foreground">{c.progress_percent}%</span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
-function KPICard({ icon: Icon, label, value, accent }: { icon: React.ComponentType<{ className?: string }>; label: string; value: number | string; accent?: boolean }) {
+function KPICard({ icon: Icon, label, value, accent, destructive }: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number | string;
+  accent?: boolean;
+  destructive?: boolean;
+}) {
   return (
-    <Card className="shadow-card hover:shadow-elevated transition-shadow">
+    <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-5 pb-5">
         <div className="flex items-center justify-between mb-3">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent ? "bg-primary/10" : "bg-muted"}`}>
-            <Icon className={`h-4 w-4 ${accent ? "text-primary" : "text-muted-foreground"}`} />
+          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+            destructive ? "bg-destructive/10" : accent ? "bg-primary/10" : "bg-muted"
+          }`}>
+            <Icon className={`h-4 w-4 ${
+              destructive ? "text-destructive" : accent ? "text-primary" : "text-muted-foreground"
+            }`} />
           </div>
         </div>
         <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-        <p className={`text-2xl font-bold tracking-tight ${accent ? "text-primary" : ""}`}>{value}</p>
+        <p className={`text-2xl font-bold tracking-tight ${
+          destructive ? "text-destructive" : accent ? "text-primary" : ""
+        }`}>{value}</p>
       </CardContent>
     </Card>
   );

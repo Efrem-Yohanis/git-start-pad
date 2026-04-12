@@ -18,7 +18,7 @@ export default function CampaignSelector({ value, onValueChange, className }: Ca
     async function load() {
       try {
         // Fetch a large page to get all campaigns
-        const res = await fetchCampaigns(1, 100);
+        const res = await fetchCampaigns({ page: 1, pageSize: 100 });
         setCampaigns(res.results);
       } catch (e) {
         console.error("Failed to load campaigns", e);

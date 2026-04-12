@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { LANGUAGE_LABELS } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
 import { toast } from "sonner";
-import { Pencil, Trash2, ArrowLeft, Eye } from "lucide-react";
-import { fetchMessageContentDetail, deleteMessageContentById, renderMessagePreview } from "@/lib/api/messages";
-import type { ApiMessageContentListItem, RenderPreviewResponse } from "@/lib/api/messages";
+import { Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { fetchMessageContentDetail, deleteMessageContentById } from "@/lib/api/messages";
+import type { ApiMessageContentListItem } from "@/lib/api/messages";
 
 function calcSmsSegments(text: string): number {
   if (!text) return 0;
@@ -26,9 +26,6 @@ export default function MessageContentDetail() {
   const [activeTab, setActiveTab] = useState("en");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [preview, setPreview] = useState<RenderPreviewResponse | null>(null);
-  const [previewLang, setPreviewLang] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (id) loadData();
@@ -44,19 +41,6 @@ export default function MessageContentDetail() {
       console.error("Failed to load message content", e);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadPreview(lang: string) {
-    setPreviewLang(lang);
-    setPreviewLoading(true);
-    try {
-      const res = await renderMessagePreview(Number(id), lang);
-      setPreview(res);
-    } catch {
-      toast.error("Failed to load preview");
-    } finally {
-      setPreviewLoading(false);
     }
   }
 
@@ -96,7 +80,7 @@ export default function MessageContentDetail() {
             <ArrowLeft className="h-3.5 w-3.5" /> Back to Messages
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Message #{mc.id} — {mc.campaign_info?.name ?? `Campaign #${mc.campaign}`}
+            Message #{mc.id} — Campaign #{mc.campaign}
           </h1>
         </div>
         <div className="flex gap-2">
@@ -113,7 +97,7 @@ export default function MessageContentDetail() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-5 shadow-card">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Campaign</p>
-          <p className="font-medium">{mc.campaign_info?.name ?? `#${mc.campaign}`}</p>
+          <p className="font-medium">#{mc.campaign}</p>
         </Card>
         <Card className="p-5 shadow-card">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Default Language</p>
@@ -128,21 +112,6 @@ export default function MessageContentDetail() {
           </div>
         </Card>
       </div>
-
-      {/* Completeness */}
-      {mc.language_completeness && (
-        <Card className="p-5 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Language Completeness</p>
-          <div className="flex items-center gap-4">
-            <span className={`text-2xl font-semibold ${mc.language_completeness.completeness_percentage === 100 ? "text-emerald-600" : "text-amber-600"}`}>
-              {mc.language_completeness.completeness_percentage.toFixed(0)}%
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {mc.language_completeness.languages_with_content} / {mc.language_completeness.total_languages} languages
-            </span>
-          </div>
-        </Card>
-      )}
 
       {/* Language tabs with content */}
       <Card className="shadow-card overflow-hidden">
@@ -169,20 +138,6 @@ export default function MessageContentDetail() {
                       <span>{text.length} characters</span>
                       <span>{segments} SMS segment{segments !== 1 ? "s" : ""}</span>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => loadPreview(l)}>
-                      <Eye className="h-3.5 w-3.5" /> Render Preview
-                    </Button>
-                    {previewLang === l && previewLoading && <Skeleton className="h-20" />}
-                    {previewLang === l && preview && !previewLoading && (
-                      <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Rendered Preview</p>
-                        <p className="text-sm whitespace-pre-wrap">{preview.rendered_message}</p>
-                        <div className="flex gap-4 text-xs text-muted-foreground">
-                          <span>{preview.character_count} chars</span>
-                          <span>{preview.sms_segments} segment{preview.sms_segments !== 1 ? "s" : ""}</span>
-                        </div>
-                      </div>
-                    )}
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">No content for this language</p>

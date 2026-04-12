@@ -4,6 +4,7 @@ import {
   Users,
   CalendarClock,
   MessageSquareText,
+  Settings,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { title: "Audiences", url: "/audiences", icon: Users },
   { title: "Schedules", url: "/schedules", icon: CalendarClock },
   { title: "Messages", url: "/messages", icon: MessageSquareText },
+  { title: "Configurations", url: "/configurations", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -43,12 +45,12 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-14 flex items-center px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
             <Megaphone className="h-4 w-4" />
           </div>
           {!collapsed && (
-            <span className="text-sm font-bold tracking-wide text-sidebar-accent-foreground">
-              Campaign Mgr
+            <span className="text-sm font-bold tracking-wide text-sidebar-accent-foreground whitespace-nowrap">
+              Campaign Manager
             </span>
           )}
         </div>

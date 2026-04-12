@@ -15,7 +15,7 @@ import { toast } from "sonner";
 interface DeleteAudienceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  audienceId: number | null;
+  campaignId: number | null;
   audienceName?: string;
   onSuccess: () => void;
 }
@@ -23,17 +23,17 @@ interface DeleteAudienceDialogProps {
 export default function DeleteAudienceDialog({
   open,
   onOpenChange,
-  audienceId,
+  campaignId,
   audienceName,
   onSuccess,
 }: DeleteAudienceDialogProps) {
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
-    if (!audienceId) return;
+    if (!campaignId) return;
     setDeleting(true);
     try {
-      await deleteAudienceById(audienceId);
+      await deleteAudienceById(campaignId);
       toast.success("Audience deleted successfully");
       onOpenChange(false);
       onSuccess();
