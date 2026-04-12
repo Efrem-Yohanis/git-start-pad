@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, CalendarClock, Eye, ChevronLeft, ChevronRight, Trash2, Power, PowerOff, Filter, X } from "lucide-react";
 import { DAY_LABELS } from "@/types/campaign";
-import { fetchSchedules, fetchScheduleSummary, deleteScheduleById, activateSchedule, deactivateSchedule } from "@/lib/api/schedules";
-import type { ApiScheduleListItem, ScheduleSummary } from "@/lib/api/schedules";
+import { fetchSchedules, deleteScheduleById, activateSchedule, deactivateSchedule } from "@/lib/api/schedules";
+import type { ApiScheduleListItem } from "@/lib/api/schedules";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -38,7 +38,7 @@ const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
 export default function ScheduleList() {
   const navigate = useNavigate();
   const [schedules, setSchedules] = useState<ApiScheduleListItem[]>([]);
-  const [summary, setSummary] = useState<ScheduleSummary | null>(null);
+  const [summary, setSummary] = useState<{ total: number; active: number; inactive: number; today: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -52,13 +52,14 @@ export default function ScheduleList() {
   async function loadData() {
     setLoading(true);
     try {
-      const [listRes, summaryRes] = await Promise.all([
-        fetchSchedules(page, pageSize, filters),
-        page === 1 ? fetchScheduleSummary() : Promise.resolve(null),
-      ]);
+      const listRes = await fetchSchedules(page, pageSize, filters);
       setSchedules(listRes.results);
       setTotalCount(listRes.count);
-      if (summaryRes) setSummary(summaryRes);
+      // Compute summary from list data
+      const active = listRes.results.filter(s => s.is_active).length;
+      const today = new Date().toISOString().split("T")[0];
+      const runningToday = listRes.results.filter(s => s.next_run_date === today && s.is_active).length;
+      setSummary({ total: listRes.count, active, inactive: listRes.results.length - active, today: runningToday });
     } catch (e) {
       console.error("Failed to load schedules", e);
     } finally {
@@ -189,19 +190,19 @@ export default function ScheduleList() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Schedules</p>
-            <p className="text-2xl font-semibold">{summary.total_schedules}</p>
+            <p className="text-2xl font-semibold">{summary.total}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Active</p>
-            <p className="text-2xl font-semibold text-emerald-600">{summary.active_schedules}</p>
+            <p className="text-2xl font-semibold text-emerald-600">{summary.active}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Running Today</p>
-            <p className="text-2xl font-semibold text-blue-600">{summary.running_today}</p>
+            <p className="text-2xl font-semibold text-blue-600">{summary.today}</p>
           </Card>
           <Card className="p-4 shadow-card">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Inactive</p>
-            <p className="text-2xl font-semibold text-muted-foreground">{summary.inactive_schedules}</p>
+            <p className="text-2xl font-semibold text-muted-foreground">{summary.inactive}</p>
           </Card>
         </div>
       )}
