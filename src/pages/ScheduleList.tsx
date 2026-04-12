@@ -38,7 +38,7 @@ const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
 export default function ScheduleList() {
   const navigate = useNavigate();
   const [schedules, setSchedules] = useState<ApiScheduleListItem[]>([]);
-  const [summary, setSummary] = useState<ScheduleSummary | null>(null);
+  const [summary, setSummary] = useState<{ total: number; active: number; inactive: number; today: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
