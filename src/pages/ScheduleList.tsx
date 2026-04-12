@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, CalendarClock, Eye, ChevronLeft, ChevronRight, Trash2, Power, PowerOff, Filter, X } from "lucide-react";
 import { DAY_LABELS } from "@/types/campaign";
-import { fetchSchedules, fetchScheduleSummary, deleteScheduleById, activateSchedule, deactivateSchedule } from "@/lib/api/schedules";
-import type { ApiScheduleListItem, ScheduleSummary } from "@/lib/api/schedules";
+import { fetchSchedules, deleteScheduleById, activateSchedule, deactivateSchedule } from "@/lib/api/schedules";
+import type { ApiScheduleListItem } from "@/lib/api/schedules";
 import { toast } from "sonner";
 import {
   AlertDialog,
