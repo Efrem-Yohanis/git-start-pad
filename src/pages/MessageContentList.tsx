@@ -12,11 +12,13 @@ import type { Language } from "@/types/campaign";
 import { Plus, MessageSquareText, Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { fetchMessageContents, deleteMessageContentById } from "@/lib/api/messages";
 import type { ApiMessageContentListItem } from "@/lib/api/messages";
+import { fetchCampaigns } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function MessageContentList() {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ApiMessageContentListItem[]>([]);
+  const [campaignNames, setCampaignNames] = useState<Record<number, string>>({});
   
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -54,9 +56,15 @@ export default function MessageContentList() {
     setLoading(true);
     try {
       const filters = buildFilters();
-      const listRes = await fetchMessageContents(page, pageSize, Object.keys(filters).length > 0 ? filters : undefined);
+      const [listRes, campaignsRes] = await Promise.all([
+        fetchMessageContents(page, pageSize, Object.keys(filters).length > 0 ? filters : undefined),
+        fetchCampaigns({ page: 1, pageSize: 100 }),
+      ]);
       setMessages(listRes.results);
       setTotalCount(listRes.count);
+      const nameMap: Record<number, string> = {};
+      campaignsRes.results.forEach((c) => { nameMap[c.id] = c.name; });
+      setCampaignNames(nameMap);
     } catch (e) {
       console.error("Failed to load message contents", e);
     } finally {
@@ -230,7 +238,7 @@ export default function MessageContentList() {
                 return (
                   <tr key={m.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
                     <td className="px-5 py-3.5 font-medium">
-                      Campaign #{m.campaign}
+                      {campaignNames[m.campaign] ?? `Campaign #${m.campaign}`}
                     </td>
                     <td className="px-5 py-3.5">
                       <Badge variant="outline" className="text-xs">{LANGUAGE_LABELS[m.default_language as Language] ?? m.default_language}</Badge>
@@ -292,7 +300,7 @@ export default function MessageContentList() {
           <DialogHeader>
             <DialogTitle>Delete Message Content</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete message content for "Campaign #{deleteTarget?.campaign}"? This cannot be undone.
+              Are you sure you want to delete message content for "{deleteTarget ? (campaignNames[deleteTarget.campaign] ?? `Campaign #${deleteTarget.campaign}`) : ""}"? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
