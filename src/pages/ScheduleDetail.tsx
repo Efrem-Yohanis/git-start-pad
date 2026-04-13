@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DAY_LABELS } from "@/types/campaign";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Power, PowerOff, RotateCcw, Trash2, CalendarDays, Clock, Globe, RefreshCw } from "lucide-react";
+import { ArrowLeft, MoreVertical, Power, PowerOff, RotateCcw, Pencil, Trash2, CalendarDays, Clock, Globe, RefreshCw } from "lucide-react";
 import {
   fetchScheduleDetail, fetchUpcomingWindows, activateSchedule, deactivateSchedule,
   resetSchedule, deleteScheduleById,
@@ -16,6 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -81,7 +84,7 @@ export default function ScheduleDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Campaign Info + Actions */}
       <div className="flex items-start justify-between">
         <div>
           <Link to="/schedules" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2">
@@ -90,19 +93,54 @@ export default function ScheduleDetail() {
           <h1 className="text-2xl font-semibold tracking-tight">{s.campaign_name}</h1>
           <p className="text-sm text-muted-foreground mt-1">{s.schedule_summary}</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {s.is_active ? (
-            <Button variant="outline" size="sm" onClick={handleDeactivate} className="gap-1.5"><PowerOff className="h-3.5 w-3.5" /> Deactivate</Button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={handleActivate} className="gap-1.5"><Power className="h-3.5 w-3.5" /> Activate</Button>
-          )}
-          <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5"><RotateCcw className="h-3.5 w-3.5" /> Reset</Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/schedules/${id}/edit`)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setShowDelete(true)}>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {s.is_active ? (
+              <DropdownMenuItem onClick={handleDeactivate} className="gap-2">
+                <PowerOff className="h-4 w-4" /> Deactivate
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={handleActivate} className="gap-2">
+                <Power className="h-4 w-4" /> Activate
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={handleReset} className="gap-2">
+              <RotateCcw className="h-4 w-4" /> Reset
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate(`/schedules/${id}/edit`)} className="gap-2">
+              <Pencil className="h-4 w-4" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShowDelete(true)} className="gap-2 text-destructive focus:text-destructive">
+              <Trash2 className="h-4 w-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      {/* Campaign Info - moved to top */}
+      <Card className="p-5 shadow-card">
+        <h3 className="text-sm font-semibold mb-3">Campaign Info</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Campaign</p>
+            <p className="font-medium">{s.campaign_name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Campaign Status</p>
+            <Badge className={`text-xs border ${STATUS_COLORS[s.campaign_status] ?? "bg-muted"}`}>{s.campaign_status_display}</Badge>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Campaign ID</p>
+            <Link to={`/campaigns/${s.campaign}`} className="font-medium text-primary hover:underline">#{s.campaign}</Link>
+          </div>
+        </div>
+      </Card>
 
       {/* Status Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -126,25 +164,6 @@ export default function ScheduleDetail() {
           <p className="text-sm font-medium">{s.next_run_date || "—"}</p>
         </Card>
       </div>
-
-      {/* Campaign Info */}
-      <Card className="p-5 shadow-card">
-        <h3 className="text-sm font-semibold mb-3">Campaign Info</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground">Campaign</p>
-            <p className="font-medium">{s.campaign_name}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Campaign Status</p>
-            <Badge className={`text-xs border ${STATUS_COLORS[s.campaign_status] ?? "bg-muted"}`}>{s.campaign_status_display}</Badge>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Campaign ID</p>
-            <Link to={`/campaigns/${s.campaign}`} className="font-medium text-primary hover:underline">#{s.campaign}</Link>
-          </div>
-        </div>
-      </Card>
 
       {/* Schedule Configuration */}
       <Card className="p-5 shadow-card space-y-4">
@@ -173,7 +192,6 @@ export default function ScheduleDetail() {
           </div>
         </div>
 
-        {/* Run Days */}
         {s.schedule_type === "weekly" && s.run_days?.length > 0 && (
           <div>
             <p className="text-xs text-muted-foreground mb-2">Run Days</p>
@@ -185,7 +203,6 @@ export default function ScheduleDetail() {
           </div>
         )}
 
-        {/* Time Windows */}
         <div>
           <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time Windows</p>
           <div className="flex flex-wrap gap-2">
@@ -195,7 +212,6 @@ export default function ScheduleDetail() {
           </div>
         </div>
 
-        {/* Auto Reset */}
         <div className="flex items-center gap-2 text-sm">
           <RefreshCw className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Auto Reset:</span>
