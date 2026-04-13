@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { fetchDashboardSummary, type DashboardSummary } from "@/lib/api/dashboard";
 import { fetchCampaigns, type ApiCampaign } from "@/lib/api";
-import { formatDistanceToNow } from "date-fns";
+
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "hsl(220 10% 60%)",
