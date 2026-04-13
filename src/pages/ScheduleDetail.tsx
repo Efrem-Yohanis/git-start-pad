@@ -84,48 +84,45 @@ export default function ScheduleDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Campaign Info + Actions */}
-      <div className="flex items-start justify-between">
-        <div>
-          <Link to="/schedules" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Schedules
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">{s.campaign_name}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{s.schedule_summary}</p>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {s.is_active ? (
-              <DropdownMenuItem onClick={handleDeactivate} className="gap-2">
-                <PowerOff className="h-4 w-4" /> Deactivate
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={handleActivate} className="gap-2">
-                <Power className="h-4 w-4" /> Activate
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={handleReset} className="gap-2">
-              <RotateCcw className="h-4 w-4" /> Reset
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate(`/schedules/${id}/edit`)} className="gap-2">
-              <Pencil className="h-4 w-4" /> Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setShowDelete(true)} className="gap-2 text-destructive focus:text-destructive">
-              <Trash2 className="h-4 w-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Campaign Info - moved to top */}
+      {/* Campaign Info Header Card */}
       <Card className="p-5 shadow-card">
-        <h3 className="text-sm font-semibold mb-3">Campaign Info</h3>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <Link to="/schedules" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Schedules
+            </Link>
+            <h1 className="text-2xl font-semibold tracking-tight">{s.campaign_name}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{s.schedule_summary}</p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {s.is_active ? (
+                <DropdownMenuItem onClick={handleDeactivate} className="gap-2">
+                  <PowerOff className="h-4 w-4" /> Deactivate
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleActivate} className="gap-2">
+                  <Power className="h-4 w-4" /> Activate
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleReset} className="gap-2">
+                <RotateCcw className="h-4 w-4" /> Reset
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/schedules/${id}/edit`)} className="gap-2">
+                <Pencil className="h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowDelete(true)} className="gap-2 text-destructive focus:text-destructive">
+                <Trash2 className="h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <p className="text-xs text-muted-foreground">Campaign</p>
