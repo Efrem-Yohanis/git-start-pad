@@ -211,32 +211,21 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Campaigns */}
+        {/* Channel Breakdown */}
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Recent Campaigns</CardTitle>
-            <Link to="/campaigns" className="text-xs text-primary hover:underline flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Channel Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
-            {!summary?.recent_campaigns?.length ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No campaigns yet</p>
+            {!summary?.by_channel || Object.values(summary.by_channel).every(v => v === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No channel data</p>
             ) : (
-              <div className="space-y-1">
-                {summary.recent_campaigns.map((c) => (
-                  <Link key={c.id} to={`/campaigns/${c.id}`} className="flex items-center justify-between py-2.5 hover:bg-accent rounded-lg px-3 -mx-3 transition-colors">
-                    <div className="min-w-0 mr-3">
-                      <p className="text-sm font-medium truncate">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(c.updated_at), { addSuffix: true })}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant={STATUS_BADGE_VARIANT[c.status] ?? "secondary"} className="text-xs capitalize">{c.status}</Badge>
-                      {c.progress_percent > 0 && (
-                        <span className="text-xs text-muted-foreground">{c.progress_percent}%</span>
-                      )}
-                    </div>
-                  </Link>
+              <div className="space-y-3 py-2">
+                {Object.entries(summary.by_channel).map(([channel, count]) => (
+                  <div key={channel} className="flex items-center justify-between py-2 px-3 border border-border rounded-lg">
+                    <span className="text-sm font-medium capitalize">{channel.replace(/_/g, ' ')}</span>
+                    <Badge variant={count > 0 ? "default" : "outline"} className="text-xs">{count}</Badge>
+                  </div>
                 ))}
               </div>
             )}
