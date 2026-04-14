@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Users, Eye, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Users, Eye, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { fetchAudiences, fetchAudienceSummary } from "@/lib/api/audiences";
 import type { ApiAudienceListItem, AudienceSummary } from "@/lib/api/audiences";
 import { fetchCampaigns } from "@/lib/api";
@@ -195,25 +195,11 @@ export default function AudienceList() {
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link to={`/audiences/${a.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="View Details">
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                      </Link>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => openEdit(a.id)}>
-                        <Pencil className="h-3.5 w-3.5" />
+                    <Link to={`/audiences/${a.id}`}>
+                      <Button variant="ghost" size="sm" className="gap-1.5">
+                        <Eye className="h-3.5 w-3.5" /> View
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        title="Delete"
-                        onClick={() => openDelete(a.id, a.campaign, campaignNames[a.campaign] ?? `Campaign #${a.campaign}`)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    </Link>
                   </td>
                 </tr>
               ))}
