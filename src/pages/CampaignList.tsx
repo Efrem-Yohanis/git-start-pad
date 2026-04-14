@@ -200,7 +200,6 @@ export default function CampaignList() {
                 {campaigns.map((c) => (
                   <CampaignRow key={c.id} campaign={c} />
                 ))}
-                ))}
               </tbody>
             </table>
           </div>
