@@ -1,18 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCampaigns, deleteCampaignApi, startCampaign, pauseCampaign, stopCampaign, type ApiCampaign } from "@/lib/api";
+import { fetchCampaigns, type ApiCampaign } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -39,20 +34,6 @@ const EXEC_STYLES: Record<string, string> = {
   STOPPED: "bg-muted text-muted-foreground",
 };
 
-type ActionType = "start" | "pause" | "stop" | "delete";
-
-interface PendingAction {
-  type: ActionType;
-  campaignId: number;
-  campaignName: string;
-}
-
-const ACTION_CONFIG: Record<ActionType, { title: string; description: string; buttonLabel: string; destructive: boolean }> = {
-  start: { title: "Start campaign", description: "This will begin sending messages to all recipients.", buttonLabel: "Start", destructive: false },
-  pause: { title: "Pause campaign", description: "This will temporarily pause message delivery. You can resume later.", buttonLabel: "Pause", destructive: false },
-  stop: { title: "Stop campaign", description: "This will permanently stop the campaign. This action cannot be undone.", buttonLabel: "Stop", destructive: true },
-  delete: { title: "Delete campaign", description: "This action cannot be undone. The campaign will be permanently removed.", buttonLabel: "Delete", destructive: true },
-};
 
 export default function CampaignList() {
   const [page, setPage] = useState(1);
@@ -62,8 +43,6 @@ export default function CampaignList() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [ordering, setOrdering] = useState("-created_at");
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -88,43 +67,13 @@ export default function CampaignList() {
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  const handleConfirmAction = useCallback(async () => {
-    if (!pendingAction) return;
-    setActionLoading(true);
-    try {
-      switch (pendingAction.type) {
-        case "start":
-          await startCampaign(pendingAction.campaignId);
-          toast.success(`Campaign "${pendingAction.campaignName}" started`);
-          break;
-        case "pause":
-          await pauseCampaign(pendingAction.campaignId);
-          toast.success(`Campaign "${pendingAction.campaignName}" paused`);
-          break;
-        case "stop":
-          await stopCampaign(pendingAction.campaignId);
-          toast.success(`Campaign "${pendingAction.campaignName}" stopped`);
-          break;
-        case "delete":
-          await deleteCampaignApi(pendingAction.campaignId);
-          toast.success(`Campaign "${pendingAction.campaignName}" deleted`);
-          break;
-      }
-      refetch();
-    } catch (e: any) {
-      toast.error(e.message || `Failed to ${pendingAction.type} campaign`);
-    } finally {
-      setActionLoading(false);
-      setPendingAction(null);
-    }
-  }, [pendingAction, refetch]);
 
   const toggleOrdering = (field: string) => {
     setOrdering((prev) => prev === field ? `-${field}` : prev === `-${field}` ? field : `-${field}`);
     setPage(1);
   };
 
-  const actionConfig = pendingAction ? ACTION_CONFIG[pendingAction.type] : null;
+  
 
   return (
     <div className="space-y-6">
