@@ -7,7 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { LANGUAGE_LABELS } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
-import { Search, Users, ArrowLeft, BarChart3, Pencil, Trash2, Copy } from "lucide-react";
+import { Search, Users, ArrowLeft, BarChart3, Pencil, Trash2, Copy, MoreVertical, Download, RefreshCw } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { fetchAudienceDetail, fetchAudienceStatistics, fetchRecipientsPreview } from "@/lib/api/audiences";
 import type { ApiAudienceDetail, AudienceStatistics, RecipientsPreview } from "@/lib/api/audiences";
 import AudienceFormDialog from "@/components/AudienceFormDialog";
@@ -101,14 +104,35 @@ export default function AudienceDetail() {
             Audience — {audience.campaign_info?.name ?? `Campaign #${audience.campaign}`}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setFormOpen(true)}>
-            <Pencil className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <MoreVertical className="h-3.5 w-3.5" /> Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setFormOpen(true)} className="gap-2">
+              <Pencil className="h-4 w-4" /> Edit Audience
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              const csv = recipients.map(r => `${r.msisdn},${r.lang}`).join("\n");
+              const blob = new Blob(["msisdn,lang\n" + csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `audience_${id}.csv`; a.click();
+              URL.revokeObjectURL(url);
+              toast.success("Audience exported");
+            }} className="gap-2">
+              <Download className="h-4 w-4" /> Export Audience
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={loadData} className="gap-2">
+              <RefreshCw className="h-4 w-4" /> Refresh Stats
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
+              <Trash2 className="h-4 w-4" /> Delete Audience
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Stats */}

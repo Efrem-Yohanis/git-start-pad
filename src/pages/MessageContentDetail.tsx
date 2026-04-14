@@ -6,10 +6,15 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
 import { LANGUAGE_LABELS } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
 import { toast } from "sonner";
-import { Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, MoreVertical, Eye, Languages } from "lucide-react";
+import { updateMessageContentById } from "@/lib/api/messages";
 import { fetchMessageContentDetail, deleteMessageContentById } from "@/lib/api/messages";
 import type { ApiMessageContentListItem } from "@/lib/api/messages";
 
@@ -83,14 +88,58 @@ export default function MessageContentDetail() {
             Message #{mc.id} — Campaign #{mc.campaign}
           </h1>
         </div>
-        <div className="flex gap-2">
-          <Link to={`/messages/${mc.id}/edit`}>
-            <Button variant="outline" size="sm" className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-          </Link>
-          <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <MoreVertical className="h-3.5 w-3.5" /> Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => navigate(`/messages/${mc.id}/edit`)} className="gap-2">
+              <Pencil className="h-4 w-4" /> Edit Content
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2">
+                <Eye className="h-4 w-4" /> Preview Language
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  {langs.map((l) => (
+                    <DropdownMenuItem key={l} onClick={() => setActiveTab(l)}>
+                      {LANGUAGE_LABELS[l as Language] ?? l}
+                      {l === activeTab && " ✓"}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2">
+                <Languages className="h-4 w-4" /> Set Default Language
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  {langs.map((l) => (
+                    <DropdownMenuItem key={l} onClick={async () => {
+                      try {
+                        await updateMessageContentById(mc.id, { default_language: l });
+                        toast.success(`Default language set to ${LANGUAGE_LABELS[l as Language] ?? l}`);
+                        loadData();
+                      } catch (e: any) { toast.error(e.message); }
+                    }}>
+                      {LANGUAGE_LABELS[l as Language] ?? l}
+                      {l === mc.default_language && " (current)"}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
+              <Trash2 className="h-4 w-4" /> Delete Content
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Meta cards */}
