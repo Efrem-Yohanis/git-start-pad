@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/types/campaign";
 import type { Language } from "@/types/campaign";
-import { Plus, MessageSquareText, Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Plus, MessageSquareText, Eye, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { fetchMessageContents, deleteMessageContentById } from "@/lib/api/messages";
 import type { ApiMessageContentListItem } from "@/lib/api/messages";
 import { fetchCampaigns } from "@/lib/api";
@@ -258,18 +258,10 @@ export default function MessageContentList() {
                     <td className="px-5 py-3.5 text-muted-foreground truncate max-w-[200px] text-xs">
                       {m.preview && typeof m.preview === "object" ? m.preview.preview?.slice(0, 60) : "—"}
                     </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/messages/${m.id}`)}>
-                          <Eye className="h-3.5 w-3.5" />
+                     <td className="px-5 py-3.5 text-right">
+                        <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => navigate(`/messages/${m.id}`)}>
+                          <Eye className="h-3.5 w-3.5" /> View
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/messages/${m.id}/edit`)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(m)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
                     </td>
                   </tr>
                 );

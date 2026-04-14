@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, CalendarClock, Eye, ChevronLeft, ChevronRight, Trash2, Power, PowerOff, Filter, X } from "lucide-react";
+import { Plus, CalendarClock, Eye, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
 import { DAY_LABELS } from "@/types/campaign";
 import { fetchSchedules, deleteScheduleById, activateSchedule, deactivateSchedule } from "@/lib/api/schedules";
 import type { ApiScheduleListItem } from "@/lib/api/schedules";
@@ -264,19 +264,11 @@ export default function ScheduleList() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title={s.is_active ? "Deactivate" : "Activate"} onClick={() => handleToggleActive(s)}>
-                        {s.is_active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                    <Link to={`/schedules/${s.id}`}>
+                      <Button variant="ghost" size="sm" className="gap-1.5">
+                        <Eye className="h-3.5 w-3.5" /> View
                       </Button>
-                      <Link to={`/schedules/${s.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="View Details">
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                      </Link>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget(s)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    </Link>
                   </td>
                 </tr>
               ))}

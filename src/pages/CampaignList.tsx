@@ -16,8 +16,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Plus, Search, Eye, Pencil, Trash2, ChevronLeft, ChevronRight,
-  Play, Pause, Square, Clock, ArrowUpDown,
+  Plus, Search, Eye, ChevronLeft, ChevronRight,
+  Clock, ArrowUpDown,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -236,7 +236,7 @@ export default function CampaignList() {
                   <SortableHeader label="Created" field="created_at" current={ordering} onToggle={toggleOrdering} />
                   <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Next Run</th>
                   <th className="text-left px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Ready</th>
-                  <th className="text-right px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
+                  <th className="text-right px-5 py-3.5 font-medium text-muted-foreground text-xs uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody>
@@ -391,33 +391,12 @@ function CampaignRow({ campaign: c, onAction }: { campaign: ApiCampaign; onActio
           <ReadinessIndicator ok={hasContent} label="C" />
         </div>
       </td>
-      <td className="px-5 py-3.5">
-        <div className="flex gap-1 justify-end">
-          <Link to={`/campaigns/${c.id}`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3.5 w-3.5" /></Button>
-          </Link>
-          <Link to={`/campaigns/${c.id}/edit`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-3.5 w-3.5" /></Button>
-          </Link>
-          {c.can_start && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:text-emerald-700" onClick={() => triggerAction("start")} title="Start">
-              <Play className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {c.can_pause && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:text-amber-700" onClick={() => triggerAction("pause")} title="Pause">
-              <Pause className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {c.can_stop && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => triggerAction("stop")} title="Stop">
-              <Square className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => triggerAction("delete")} title="Delete">
-            <Trash2 className="h-3.5 w-3.5" />
+      <td className="px-5 py-3.5 text-right">
+        <Link to={`/campaigns/${c.id}`}>
+          <Button variant="ghost" size="sm" className="gap-1.5">
+            <Eye className="h-3.5 w-3.5" /> View
           </Button>
-        </div>
+        </Link>
       </td>
     </tr>
   );
