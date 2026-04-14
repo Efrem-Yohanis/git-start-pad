@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCampaigns, type ApiCampaign } from "@/lib/api";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -197,7 +198,8 @@ export default function CampaignList() {
                   </tr>
                 )}
                 {campaigns.map((c) => (
-                  <CampaignRow key={c.id} campaign={c} onAction={setPendingAction} />
+                  <CampaignRow key={c.id} campaign={c} />
+                ))}
                 ))}
               </tbody>
             </table>
@@ -222,33 +224,6 @@ export default function CampaignList() {
         </div>
       )}
 
-      {/* Confirmation dialog for all actions */}
-      <AlertDialog open={!!pendingAction} onOpenChange={() => setPendingAction(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{actionConfig?.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingAction && (
-                <>
-                  <span className="font-medium text-foreground">{pendingAction.campaignName}</span>
-                  <br />
-                  {actionConfig?.description}
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className={actionConfig?.destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
-              onClick={handleConfirmAction}
-              disabled={actionLoading}
-            >
-              {actionLoading ? "Processing..." : actionConfig?.buttonLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -270,7 +245,7 @@ function SortableHeader({ label, field, current, onToggle }: {
   );
 }
 
-function CampaignRow({ campaign: c, onAction }: { campaign: ApiCampaign; onAction: (a: PendingAction) => void }) {
+function CampaignRow({ campaign: c }: { campaign: ApiCampaign }) {
   const channels = Array.isArray(c.channels) ? c.channels : Object.values(c.channels || {});
   const progressPercent = (c as any).progress_percent ?? 0;
   const totalMessages = (c as any).total_messages ?? 0;
@@ -279,10 +254,6 @@ function CampaignRow({ campaign: c, onAction }: { campaign: ApiCampaign; onActio
   const hasSchedule = (c as any).has_schedule;
   const hasAudience = (c as any).has_audience;
   const hasContent = (c as any).has_content;
-
-  const triggerAction = (type: ActionType) => {
-    onAction({ type, campaignId: c.id, campaignName: c.name });
-  };
 
   return (
     <tr className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
