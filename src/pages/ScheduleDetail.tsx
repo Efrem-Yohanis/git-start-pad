@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DAY_LABELS } from "@/types/campaign";
 import { toast } from "sonner";
-import { ArrowLeft, MoreVertical, Power, PowerOff, RotateCcw, Pencil, Trash2, CalendarDays, Clock, Globe, RefreshCw } from "lucide-react";
+import { ArrowLeft, MoreVertical, Power, PowerOff, RotateCcw, Pencil, Trash2, CalendarDays, Clock, Globe, RefreshCw, Eye } from "lucide-react";
 import {
   fetchScheduleDetail, fetchUpcomingWindows, activateSchedule, deactivateSchedule,
   resetSchedule, deleteScheduleById,
@@ -116,6 +116,9 @@ export default function ScheduleDetail() {
               <DropdownMenuItem onClick={() => navigate(`/schedules/${id}/edit`)} className="gap-2">
                 <Pencil className="h-4 w-4" /> Edit
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => document.getElementById("upcoming-windows")?.scrollIntoView({ behavior: "smooth" })} className="gap-2">
+                <Eye className="h-4 w-4" /> View Upcoming Windows
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setShowDelete(true)} className="gap-2 text-destructive focus:text-destructive">
                 <Trash2 className="h-4 w-4" /> Delete
@@ -218,7 +221,7 @@ export default function ScheduleDetail() {
 
       {/* Upcoming Windows */}
       {upcoming.length > 0 && (
-        <Card className="p-5 shadow-card">
+        <Card id="upcoming-windows" className="p-5 shadow-card">
           <h3 className="text-sm font-semibold mb-3">Upcoming Windows</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

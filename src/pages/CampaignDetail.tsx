@@ -22,7 +22,7 @@ import { useState, useCallback } from "react";
 import {
   fetchCampaign, fetchCampaignProgress, fetchCampaignBatches,
   startCampaign, pauseCampaign, resumeCampaign, stopCampaign,
-  completeCampaign, archiveCampaign, softDeleteCampaign,
+  completeCampaign, archiveCampaign, softDeleteCampaign, deleteCampaignApi,
   type ApiCampaign
 } from "@/lib/api";
 import type { CampaignStatus, Channel } from "@/types/campaign";
@@ -164,71 +164,63 @@ export default function CampaignDetail() {
               {c.execution_status_display}
             </Badge>
           )}
-        </div>
-      </div>
 
-      {/* ─── Action Buttons ─── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Link to={`/campaigns/${c.id}/edit`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-        </Link>
-
-        {c.can_start && (
-          <Button size="sm" disabled={acting} className="gap-1.5"
-            onClick={() => confirmAndExec("Start Campaign", "This will begin sending messages to the audience. Make sure schedule, audience, and content are configured.", () => startCampaign(numId))}>
-            <Play className="h-3.5 w-3.5" /> Start
-          </Button>
-        )}
-        {c.can_pause && (
-          <Button size="sm" variant="outline" disabled={acting} className="gap-1.5"
-            onClick={() => confirmAndExec("Pause Campaign", "Pause this campaign? You can resume later.", () => pauseCampaign(numId))}>
-            <Pause className="h-3.5 w-3.5" /> Pause
-          </Button>
-        )}
-        {c.can_resume && (
-          <Button size="sm" disabled={acting} className="gap-1.5"
-            onClick={() => confirmAndExec("Resume Campaign", "Resume sending messages from where it left off.", () => resumeCampaign(numId))}>
-            <Play className="h-3.5 w-3.5" /> Resume
-          </Button>
-        )}
-        {c.can_stop && (
-          <Button size="sm" variant="destructive" disabled={acting} className="gap-1.5"
-            onClick={() => confirmAndExec("Stop Campaign", "This will permanently stop the campaign. It cannot be resumed. Are you sure?", () => stopCampaign(numId), "destructive")}>
-            <Square className="h-3.5 w-3.5" /> Stop
-          </Button>
-        )}
-
-        {/* More actions dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <MoreVertical className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {c.can_complete && (
-              <DropdownMenuItem onClick={() => confirmAndExec("Complete Campaign", "Mark this campaign as completed.", () => completeCampaign(numId))}>
-                <CheckCircle className="h-4 w-4 mr-2" /> Mark Complete
-              </DropdownMenuItem>
-            )}
-            {c.status === "completed" && (
-              <DropdownMenuItem onClick={() => confirmAndExec("Archive Campaign", "Archive this campaign? It will be hidden from the active list.", () => archiveCampaign(numId))}>
-                <Archive className="h-4 w-4 mr-2" /> Archive
-              </DropdownMenuItem>
-            )}
-            {c.status !== "active" && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive"
-                  onClick={() => confirmAndExec("Delete Campaign", "This campaign will be moved to trash. Are you sure?", async () => { await softDeleteCampaign(numId); navigate("/campaigns"); }, "destructive")}>
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 ml-2">
+                <MoreVertical className="h-3.5 w-3.5" /> Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {c.can_start && (
+                <DropdownMenuItem onClick={() => confirmAndExec("Start Campaign", "This will begin sending messages.", () => startCampaign(numId))}>
+                  <Play className="h-4 w-4 mr-2" /> Start
                 </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              {c.can_pause && (
+                <DropdownMenuItem onClick={() => confirmAndExec("Pause Campaign", "Pause this campaign?", () => pauseCampaign(numId))}>
+                  <Pause className="h-4 w-4 mr-2" /> Pause
+                </DropdownMenuItem>
+              )}
+              {c.can_resume && (
+                <DropdownMenuItem onClick={() => confirmAndExec("Resume Campaign", "Resume sending messages.", () => resumeCampaign(numId))}>
+                  <Play className="h-4 w-4 mr-2" /> Resume
+                </DropdownMenuItem>
+              )}
+              {c.can_stop && (
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmAndExec("Stop Campaign", "Permanently stop this campaign?", () => stopCampaign(numId), "destructive")}>
+                  <Square className="h-4 w-4 mr-2" /> Stop
+                </DropdownMenuItem>
+              )}
+              {c.can_complete && (
+                <DropdownMenuItem onClick={() => confirmAndExec("Complete Campaign", "Mark as completed.", () => completeCampaign(numId))}>
+                  <CheckCircle className="h-4 w-4 mr-2" /> Complete
+                </DropdownMenuItem>
+              )}
+              {c.status === "completed" && (
+                <DropdownMenuItem onClick={() => confirmAndExec("Archive Campaign", "Archive this campaign?", () => archiveCampaign(numId))}>
+                  <Archive className="h-4 w-4 mr-2" /> Archive
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}/edit`)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              {c.status !== "active" && (
+                <>
+                  <DropdownMenuItem className="text-destructive focus:text-destructive"
+                    onClick={() => confirmAndExec("Delete Campaign", "Permanently delete?", () => deleteCampaignApi(numId).then(() => { navigate("/campaigns"); return { message: "Deleted" }; }), "destructive")}>
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive focus:text-destructive"
+                    onClick={() => confirmAndExec("Soft Delete", "Move to trash?", async () => { await softDeleteCampaign(numId); navigate("/campaigns"); return { message: "Moved to trash" }; }, "destructive")}>
+                    <Trash2 className="h-4 w-4 mr-2" /> Soft Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* ─── Readiness Check ─── */}
