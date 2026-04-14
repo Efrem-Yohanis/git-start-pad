@@ -221,7 +221,7 @@ export default function ScheduleDetail() {
 
       {/* Upcoming Windows */}
       {upcoming.length > 0 && (
-        <Card className="p-5 shadow-card">
+        <Card id="upcoming-windows" className="p-5 shadow-card">
           <h3 className="text-sm font-semibold mb-3">Upcoming Windows</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
