@@ -95,66 +95,79 @@ export default function AudienceDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link to="/audiences" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-1">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Audiences
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Audience — {audience.campaign_info?.name ?? `Campaign #${audience.campaign}`}
-          </h1>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <MoreVertical className="h-3.5 w-3.5" /> Actions
+      {/* ─── Audience Info Header Card ─── */}
+      <div className="bg-card border rounded-lg p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/audiences")}>
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setFormOpen(true)} className="gap-2">
-              <Pencil className="h-4 w-4" /> Edit Audience
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              const csv = recipients.map(r => `${r.msisdn},${r.lang}`).join("\n");
-              const blob = new Blob(["msisdn,lang\n" + csv], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a"); a.href = url; a.download = `audience_${id}.csv`; a.click();
-              URL.revokeObjectURL(url);
-              toast.success("Audience exported");
-            }} className="gap-2">
-              <Download className="h-4 w-4" /> Export Audience
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={loadData} className="gap-2">
-              <RefreshCw className="h-4 w-4" /> Refresh Stats
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
-              <Trash2 className="h-4 w-4" /> Delete Audience
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            <div>
+              <h1 className="text-xl font-semibold">
+                Audience — {audience.campaign_info?.name ?? `Campaign #${audience.campaign}`}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {audience.total_count.toLocaleString()} recipients · {audience.valid_percentage.toFixed(1)}% valid
+              </p>
+            </div>
+          </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Recipients</p>
-          <p className="text-2xl font-semibold">{audience.total_count.toLocaleString()}</p>
-        </Card>
-        <Card className="p-4 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Valid</p>
-          <p className="text-2xl font-semibold text-emerald-600">{audience.valid_count.toLocaleString()}</p>
-        </Card>
-        <Card className="p-4 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Invalid</p>
-          <p className="text-2xl font-semibold text-destructive">{audience.invalid_count}</p>
-        </Card>
-        <Card className="p-4 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Valid %</p>
-          <p className={`text-2xl font-semibold ${audience.valid_percentage >= 90 ? "text-emerald-600" : "text-amber-600"}`}>
-            {audience.valid_percentage.toFixed(1)}%
-          </p>
-        </Card>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <MoreVertical className="h-3.5 w-3.5" /> Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setFormOpen(true)} className="gap-2">
+                <Pencil className="h-4 w-4" /> Edit Audience
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const csv = recipients.map(r => `${r.msisdn},${r.lang}`).join("\n");
+                const blob = new Blob(["msisdn,lang\n" + csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a"); a.href = url; a.download = `audience_${id}.csv`; a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Audience exported");
+              }} className="gap-2">
+                <Download className="h-4 w-4" /> Export Audience
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={loadData} className="gap-2">
+                <RefreshCw className="h-4 w-4" /> Refresh Stats
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
+                <Trash2 className="h-4 w-4" /> Delete Audience
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Info Grid */}
+        <div className="border-t pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Campaign</span>
+            <p className="font-medium mt-1">{audience.campaign_info?.name ?? `#${audience.campaign}`}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Total Recipients</span>
+            <p className="text-2xl font-semibold mt-1">{audience.total_count.toLocaleString()}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Valid / Invalid</span>
+            <p className="mt-1">
+              <span className="font-semibold text-emerald-600">{audience.valid_count.toLocaleString()}</span>
+              {" / "}
+              <span className="font-semibold text-destructive">{audience.invalid_count}</span>
+            </p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Valid %</span>
+            <p className={`text-2xl font-semibold mt-1 ${audience.valid_percentage >= 90 ? "text-emerald-600" : "text-amber-600"}`}>
+              {audience.valid_percentage.toFixed(1)}%
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Language distribution */}

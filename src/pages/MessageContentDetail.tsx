@@ -79,87 +79,94 @@ export default function MessageContentDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link to="/messages" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-1">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Messages
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Message #{mc.id} — Campaign #{mc.campaign}
-          </h1>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <MoreVertical className="h-3.5 w-3.5" /> Actions
+      {/* ─── Message Info Header Card ─── */}
+      <div className="bg-card border rounded-lg p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/messages")}>
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate(`/messages/${mc.id}/edit`)} className="gap-2">
-              <Pencil className="h-4 w-4" /> Edit Content
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                <Eye className="h-4 w-4" /> Preview Language
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  {langs.map((l) => (
-                    <DropdownMenuItem key={l} onClick={() => setActiveTab(l)}>
-                      {LANGUAGE_LABELS[l as Language] ?? l}
-                      {l === activeTab && " ✓"}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                <Languages className="h-4 w-4" /> Set Default Language
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  {langs.map((l) => (
-                    <DropdownMenuItem key={l} onClick={async () => {
-                      try {
-                        await updateMessageContentById(mc.id, { default_language: l });
-                        toast.success(`Default language set to ${LANGUAGE_LABELS[l as Language] ?? l}`);
-                        loadData();
-                      } catch (e: any) { toast.error(e.message); }
-                    }}>
-                      {LANGUAGE_LABELS[l as Language] ?? l}
-                      {l === mc.default_language && " (current)"}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
-              <Trash2 className="h-4 w-4" /> Delete Content
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Meta cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-5 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Campaign</p>
-          <p className="font-medium">#{mc.campaign}</p>
-        </Card>
-        <Card className="p-5 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Default Language</p>
-          <Badge variant="outline">{LANGUAGE_LABELS[mc.default_language as Language] ?? mc.default_language}</Badge>
-        </Card>
-        <Card className="p-5 shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Languages</p>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {langs.map((l) => (
-              <Badge key={l} variant="secondary" className="text-xs">{LANGUAGE_LABELS[l as Language] ?? l}</Badge>
-            ))}
+            <div>
+              <h1 className="text-xl font-semibold">Message #{mc.id} — Campaign #{mc.campaign}</h1>
+              <p className="text-sm text-muted-foreground">
+                {langs.length} language{langs.length !== 1 ? "s" : ""} · Default: {LANGUAGE_LABELS[mc.default_language as Language] ?? mc.default_language}
+              </p>
+            </div>
           </div>
-        </Card>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <MoreVertical className="h-3.5 w-3.5" /> Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/messages/${mc.id}/edit`)} className="gap-2">
+                <Pencil className="h-4 w-4" /> Edit Content
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <Eye className="h-4 w-4" /> Preview Language
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    {langs.map((l) => (
+                      <DropdownMenuItem key={l} onClick={() => setActiveTab(l)}>
+                        {LANGUAGE_LABELS[l as Language] ?? l}
+                        {l === activeTab && " ✓"}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <Languages className="h-4 w-4" /> Set Default Language
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    {langs.map((l) => (
+                      <DropdownMenuItem key={l} onClick={async () => {
+                        try {
+                          await updateMessageContentById(mc.id, { default_language: l });
+                          toast.success(`Default language set to ${LANGUAGE_LABELS[l as Language] ?? l}`);
+                          loadData();
+                        } catch (e: any) { toast.error(e.message); }
+                      }}>
+                        {LANGUAGE_LABELS[l as Language] ?? l}
+                        {l === mc.default_language && " (current)"}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
+                <Trash2 className="h-4 w-4" /> Delete Content
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Info Grid */}
+        <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Campaign</span>
+            <p className="font-medium mt-1">#{mc.campaign}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Default Language</span>
+            <div className="mt-1"><Badge variant="outline">{LANGUAGE_LABELS[mc.default_language as Language] ?? mc.default_language}</Badge></div>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Languages</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {langs.map((l) => (
+                <Badge key={l} variant="secondary" className="text-xs">{LANGUAGE_LABELS[l as Language] ?? l}</Badge>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Language tabs with content */}
