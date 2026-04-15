@@ -143,191 +143,90 @@ export default function CampaignDetail() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* ─── Header ─── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/campaigns")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold">{c.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              Created {new Date(c.created_at).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={STATUS_COLORS[c.status] || "bg-muted"}>{c.status}</Badge>
-          {c.execution_status_display && (
-            <Badge className={EXEC_STATUS_COLORS[c.execution_status] || ""} variant="outline">
-              {c.execution_status_display}
-            </Badge>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 ml-2">
-                <MoreVertical className="h-3.5 w-3.5" /> Actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {c.can_start && (
-                <DropdownMenuItem onClick={() => confirmAndExec("Start Campaign", "This will begin sending messages.", () => startCampaign(numId))}>
-                  <Play className="h-4 w-4 mr-2" /> Start
-                </DropdownMenuItem>
-              )}
-              {c.can_pause && (
-                <DropdownMenuItem onClick={() => confirmAndExec("Pause Campaign", "Pause this campaign?", () => pauseCampaign(numId))}>
-                  <Pause className="h-4 w-4 mr-2" /> Pause
-                </DropdownMenuItem>
-              )}
-              {c.can_resume && (
-                <DropdownMenuItem onClick={() => confirmAndExec("Resume Campaign", "Resume sending messages.", () => resumeCampaign(numId))}>
-                  <Play className="h-4 w-4 mr-2" /> Resume
-                </DropdownMenuItem>
-              )}
-              {c.can_stop && (
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmAndExec("Stop Campaign", "Permanently stop this campaign?", () => stopCampaign(numId), "destructive")}>
-                  <Square className="h-4 w-4 mr-2" /> Stop
-                </DropdownMenuItem>
-              )}
-              {c.can_complete && (
-                <DropdownMenuItem onClick={() => confirmAndExec("Complete Campaign", "Mark as completed.", () => completeCampaign(numId))}>
-                  <CheckCircle className="h-4 w-4 mr-2" /> Complete
-                </DropdownMenuItem>
-              )}
-              {c.status === "completed" && (
-                <DropdownMenuItem onClick={() => confirmAndExec("Archive Campaign", "Archive this campaign?", () => archiveCampaign(numId))}>
-                  <Archive className="h-4 w-4 mr-2" /> Archive
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}/edit`)}>
-                <Edit className="h-4 w-4 mr-2" /> Edit
-              </DropdownMenuItem>
-              {c.status !== "active" && (
-                <>
-                  <DropdownMenuItem className="text-destructive focus:text-destructive"
-                    onClick={() => confirmAndExec("Delete Campaign", "Permanently delete?", () => deleteCampaignApi(numId).then(() => { navigate("/campaigns"); return { message: "Deleted" }; }), "destructive")}>
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive focus:text-destructive"
-                    onClick={() => confirmAndExec("Soft Delete", "Move to trash?", async () => { await softDeleteCampaign(numId); navigate("/campaigns"); return { message: "Moved to trash" }; }, "destructive")}>
-                    <Trash2 className="h-4 w-4 mr-2" /> Soft Delete
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* ─── Readiness Check ─── */}
-      {c.status === "draft" && (
-        <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
-          <h3 className="text-sm font-medium flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" /> Campaign Readiness
-          </h3>
-          <div className="flex gap-4 text-sm">
-            <span className={c.schedule ? "text-green-600" : "text-destructive"}>
-              {c.schedule ? "✓" : "✗"} Schedule
-            </span>
-            <span className={c.audience ? "text-green-600" : "text-destructive"}>
-              {c.audience ? "✓" : "✗"} Audience
-            </span>
-            <span className={c.message_content ? "text-green-600" : "text-destructive"}>
-              {c.message_content ? "✓" : "✗"} Message Content
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Progress Section ─── */}
-      {p && (
-        <Section icon={BarChart3} title="Execution Progress">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Overall Progress</span>
-                <span className="font-semibold">{Number(p.progress_percent ?? 0).toFixed(1)}%</span>
-              </div>
-              <Progress value={p.progress_percent ?? 0} className="h-3" />
+      {/* ─── Campaign Info Header Card ─── */}
+      <div className="bg-card border rounded-lg p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/campaigns")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold">{c.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                Created {new Date(c.created_at).toLocaleDateString()}
+              </p>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <StatBox icon={Mail} label="Total" value={p.total_messages} color="text-foreground" />
-              <StatBox icon={Send} label="Sent" value={p.sent_count} color="text-green-600" />
-              <StatBox icon={CheckCircle2} label="Delivered" value={p.delivered_count} color="text-blue-600" />
-              <StatBox icon={XCircle} label="Failed" value={p.failed_count} color="text-destructive" />
-              <StatBox icon={Clock} label="Pending" value={p.pending_count} color="text-muted-foreground" />
-            </div>
-
-            {p.total_messages > 0 && (
-              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border-t pt-3">
-                <span>Delivery Rate: <strong className="text-foreground">{pct(p.delivered_count, p.total_messages)}</strong></span>
-                <span>Send Rate: <strong className="text-foreground">{pct(p.sent_count, p.total_messages)}</strong></span>
-                <span>Failure Rate: <strong className="text-foreground">{pct(p.failed_count, p.total_messages)}</strong></span>
-              </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={STATUS_COLORS[c.status] || "bg-muted"}>{c.status}</Badge>
+            {c.execution_status_display && (
+              <Badge className={EXEC_STATUS_COLORS[c.execution_status] || ""} variant="outline">
+                {c.execution_status_display}
+              </Badge>
             )}
 
-            {/* Batch summary */}
-            {batches && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t pt-4">
-                <StatBox icon={Layers} label="Total Batches" value={batches.total_batches} color="text-foreground" />
-                <StatBox icon={CheckCircle2} label="Completed" value={batches.completed_batches} color="text-green-600" />
-                <StatBox icon={Loader2} label="In Progress" value={batches.in_progress_batches} color="text-yellow-600" />
-                <StatBox icon={XCircle} label="Failed" value={batches.failed_batches} color="text-destructive" />
-              </div>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 ml-2">
+                  <MoreVertical className="h-3.5 w-3.5" /> Actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {c.can_start && (
+                  <DropdownMenuItem onClick={() => confirmAndExec("Start Campaign", "This will begin sending messages.", () => startCampaign(numId))}>
+                    <Play className="h-4 w-4 mr-2" /> Start
+                  </DropdownMenuItem>
+                )}
+                {c.can_pause && (
+                  <DropdownMenuItem onClick={() => confirmAndExec("Pause Campaign", "Pause this campaign?", () => pauseCampaign(numId))}>
+                    <Pause className="h-4 w-4 mr-2" /> Pause
+                  </DropdownMenuItem>
+                )}
+                {c.can_resume && (
+                  <DropdownMenuItem onClick={() => confirmAndExec("Resume Campaign", "Resume sending messages.", () => resumeCampaign(numId))}>
+                    <Play className="h-4 w-4 mr-2" /> Resume
+                  </DropdownMenuItem>
+                )}
+                {c.can_stop && (
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmAndExec("Stop Campaign", "Permanently stop this campaign?", () => stopCampaign(numId), "destructive")}>
+                    <Square className="h-4 w-4 mr-2" /> Stop
+                  </DropdownMenuItem>
+                )}
+                {c.can_complete && (
+                  <DropdownMenuItem onClick={() => confirmAndExec("Complete Campaign", "Mark as completed.", () => completeCampaign(numId))}>
+                    <CheckCircle className="h-4 w-4 mr-2" /> Complete
+                  </DropdownMenuItem>
+                )}
+                {c.status === "completed" && (
+                  <DropdownMenuItem onClick={() => confirmAndExec("Archive Campaign", "Archive this campaign?", () => archiveCampaign(numId))}>
+                    <Archive className="h-4 w-4 mr-2" /> Archive
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}/edit`)}>
+                  <Edit className="h-4 w-4 mr-2" /> Edit
+                </DropdownMenuItem>
+                {c.status !== "active" && (
+                  <>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive"
+                      onClick={() => confirmAndExec("Delete Campaign", "Permanently delete?", () => deleteCampaignApi(numId).then(() => { navigate("/campaigns"); return { message: "Deleted" }; }), "destructive")}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive"
+                      onClick={() => confirmAndExec("Soft Delete", "Move to trash?", async () => { await softDeleteCampaign(numId); navigate("/campaigns"); return { message: "Moved to trash" }; }, "destructive")}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Soft Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </Section>
-      )}
+        </div>
 
-      {/* ─── Batches Table ─── */}
-      {batchList.length > 0 && (
-        <Section icon={Layers} title="Recent Batches">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Batch ID</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Success</TableHead>
-                  <TableHead className="text-right">Failed</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {batchList.map((b: any, i: number) => (
-                  <TableRow key={b.batch_id || i}>
-                    <TableCell className="font-mono text-xs">{b.batch_id || `#${i + 1}`}</TableCell>
-                    <TableCell className="text-right">{b.total_messages?.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-green-600">{b.success_count?.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-destructive">{b.failed_count?.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge className={`text-xs ${EXEC_STATUS_COLORS[b.status] || "bg-muted"}`}>
-                        {b.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {b.created_at ? new Date(b.created_at).toLocaleString() : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Section>
-      )}
-
-      {/* ─── Campaign Info ─── */}
-      <Section icon={Radio} title="Campaign Info">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <Field label="Campaign Name" value={c.name} />
+        {/* Campaign Info Grid */}
+        <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <Field label="Sender ID" value={c.sender_id || "—"} />
-          <Field label="Status" value={c.status} className="capitalize" />
           <Field label="Execution Status" value={c.execution_status_display || c.execution_status || "—"} />
           <div>
             <span className="text-muted-foreground text-xs uppercase tracking-wider">Channels</span>
@@ -347,7 +246,7 @@ export default function CampaignDetail() {
           <Field label="Total Processed" value={String(c.total_processed ?? 0)} />
           <Field label="Last Processed ID" value={String(c.last_processed_id ?? 0)} />
         </div>
-      </Section>
+      </div>
 
       {/* ─── Schedule ─── */}
       {c.schedule && <ScheduleInfo schedule={c.schedule} />}
