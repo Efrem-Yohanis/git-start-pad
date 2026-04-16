@@ -145,7 +145,7 @@ export default function ScheduleCreate() {
   const isRecurring = form.schedule_type !== "once";
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
         <button onClick={() => navigate("/schedules")} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-1">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to Schedules
