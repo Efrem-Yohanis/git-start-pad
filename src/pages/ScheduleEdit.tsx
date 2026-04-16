@@ -68,7 +68,7 @@ export default function ScheduleEdit() {
   }, [id]);
 
   if (loading || !form) {
-    return <div className="space-y-4 max-w-3xl"><Skeleton className="h-8 w-48" /><Skeleton className="h-96" /></div>;
+    return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96" /></div>;
   }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -141,7 +141,7 @@ export default function ScheduleEdit() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
         <button onClick={() => navigate(`/schedules/${id}`)} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-1">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to Schedule
