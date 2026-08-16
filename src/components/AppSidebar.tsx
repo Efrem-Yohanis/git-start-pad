@@ -52,7 +52,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <span className="text-sm font-bold tracking-wide text-sidebar-accent-foreground whitespace-nowrap">
-              Campaign Manager
+              SMS Campaign Manager
             </span>
           )}
         </div>
@@ -92,7 +92,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
         {!collapsed && (
           <p className="text-[10px] text-sidebar-foreground/40">
-            © {new Date().getFullYear()} Campaign Manager
+            © {new Date().getFullYear()} SMS Campaign Manager
           </p>
         )}
       </SidebarFooter>
