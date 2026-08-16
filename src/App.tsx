@@ -22,6 +22,9 @@ import MessageContentDetail from "@/pages/MessageContentDetail";
 import MessageContentCreate from "@/pages/MessageContentCreate";
 import MessageContentEdit from "@/pages/MessageContentEdit";
 import Configurations from "@/pages/Configurations";
+import ReportList from "@/pages/ReportList";
+import ReportForm from "@/pages/ReportForm";
+import ReportDetail from "@/pages/ReportDetail";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 
@@ -59,6 +62,10 @@ const App = () => (
                       <Route path="/messages/:id" element={<MessageContentDetail />} />
                       <Route path="/messages/:id/edit" element={<MessageContentEdit />} />
                       <Route path="/configurations" element={<Configurations />} />
+                      <Route path="/reports" element={<ReportList />} />
+                      <Route path="/reports/create" element={<ReportForm />} />
+                      <Route path="/reports/:id" element={<ReportDetail />} />
+                      <Route path="/reports/:id/edit" element={<ReportForm />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppShell>
