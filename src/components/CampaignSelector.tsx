@@ -15,19 +15,27 @@ export default function CampaignSelector({ value, onValueChange, className }: Ca
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
+    async function loadAll() {
       try {
-        // Fetch a large page to get all campaigns
-        const res = await fetchCampaigns({ page: 1, pageSize: 100 });
-        setCampaigns(res.results);
+        const all: ApiCampaign[] = [];
+        let page = 1;
+        const pageSize = 100;
+        while (true) {
+          const res = await fetchCampaigns({ page, pageSize });
+          all.push(...res.results);
+          if (!res.next || res.results.length < pageSize) break;
+          page += 1;
+        }
+        setCampaigns(all);
       } catch (e) {
         console.error("Failed to load campaigns", e);
       } finally {
         setLoading(false);
       }
     }
-    load();
+    loadAll();
   }, []);
+
 
   if (loading) return <Skeleton className="h-10 w-full" />;
 
